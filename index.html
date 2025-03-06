@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+    >
+    <meta
+    name="description"
+    content=""
+    >
+    <title>constructor</title>
+</head>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+    }
+    header {
+        height: 32px;
+    }
+    main {
+        height: calc(100vh - 32px);
+    }
+    .cell {
+        border: 1px solid black;
+
+        &.selected {
+        border-color: aliceblue;
+    }
+}
+.level {
+    width: 32px;
+}
+</style>
+
+<body>
+<header>
+<button>|</button>
+<button>-</button>
+<button>✅</button>
+<button>❌</button>
+<input class="level" type="number" name="level" id="level" value="1" />
+</header>
+<main>
+<div onclick="selectCell(this)" class="cell"></div>
+</main>
+</body>
+<script>
+function selectCell(cell) {
+log(cell)
+cell.classList.toggle('selected')
+}
+
+
+function log(text, subtext) {
+console.log(text + subtext);
+}
+
+function createEl( {
+elName = 'div',
+className = '',
+value = null,
+store,
+setValue,
+setStore,
+type = '',
+innerHTML = '',
+appendTo = '',
+onclick = null,
+onchange = null,
+style = {},
+datasets = [],
+appendInnerHTML = '',
+}) {
+const el = document.createElement(elName)
+
+if (className) el.className = className
+if (type) el.type = type
+if (value) el.value = value
+if (style) {
+Object.keys(style).forEach(field => {
+el.style[field] = style[field]
+})
+}
+if (innerHTML) el.innerHTML = innerHTML
+if (onclick) el.onclick = onclick
+if (onchange) el.onchange = onchange
+if (appendInnerHTML) el.append(appendInnerHTML)
+if (datasets.length) {
+datasets.forEach(dataset => {
+el.dataset[dataset.name] = dataset.value
+})
+}
+
+if (appendTo) {
+if (appendTo === 'body') {
+document.body.append(el)
+} else {
+document.querySelector(appendTo).append(el)
+}
+}
+return el
+}
+
+</script>
+
+</html>
