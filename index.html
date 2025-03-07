@@ -21,14 +21,19 @@
     header {
         height: 32px;
     }
+    footer{
+        display: none;
+    }
     main {
         height: calc(100vh - 32px);
+        display: flex;
     }
     .cell {
+        flex: 1;
         border: 1px solid black;
 
         &.selected {
-        border-color: aliceblue;
+        border-color: red;
     }
 }
 .level {
@@ -38,15 +43,23 @@
 
 <body>
 <header>
-<button>|</button>
-<button>-</button>
-<button>✅</button>
-<button>❌</button>
+  <input list="browsers" name="browser" id="browser">
+  <datalist id="browsers">
+    <option value="ok">
+    <option value="cancel">
+    <option value="vertical">
+    <option value="horizontal">
+    <option value="undo">
+    <option value="redo">
+  </datalist>
 <input class="level" type="number" name="level" id="level" value="1" />
 </header>
 <main>
 <div onclick="selectCell(this)" class="cell"></div>
 </main>
+<footer>
+    <div onclick="selectCell(this)" class="cell"></div>
+</footer>
 </body>
 <script>
 function selectCell(cell) {
