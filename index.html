@@ -56,9 +56,10 @@
 <div onclick="selectCell(this)" class="cell 1"></div>
 </main>
 <footer>
-    <span id="gridTemplateRows">1 1 2 3</span>
-    <span id="gridTemplateColumns">1 2</span>
-    <span data-template='[[1,1],[2,3]]'></span>
+    <span id="gridTemplateRows">1 2 1 3</span>
+    <span id="gridTemplateColumns">1 1</span>
+    <span data-template='[[1,2],[1,3]]'></span>
+    <span data-template='[[1,2,3],[1,2,4]]'></span>
     <div onclick="selectCell(this)" class="cell"></div>
 </footer>
 </body>
@@ -72,13 +73,40 @@ function changeMenu({ value }) {
     if(value === 'vertical') {
         const selects = document.querySelectorAll('.selected');
         Array.from(selects).forEach(selected => {
-            log(selected.className)
+            selectedNumber = +selected.className
             rows = gridTemplateRows.innerText.join(' ')
             columns = gridTemplateColumns.innerText.join(' ')
             rowsLength = rows.filter(item=>item===selected).length;
             columnsLength = columns.filter(item=>item===selected).length;
             mainDirection = rowsLength > columnsLength ? rowsLength : columnsLength
-            
+            isPushed = false
+            rows = rows.reduce((prev,item, index) => {
+                itemNumber = +itemNumber
+                isChangedNumber = itemNumber >= selectedNumber
+                newNumber = isChangedNumber ? itemNumber+1 : itemNumber
+                
+                if(isChangedNumbercount && isPushed) {
+                    isPushed = true
+                    prev.push(itemNumber)
+                }
+                prev.push(newNumber)
+                return prev;
+            }, [])
+            isPushed = false
+            columns = columns.reduce((prev,item, index) => {
+                itemNumber = +itemNumber
+                isChangedNumber = itemNumber >= selectedNumber
+                newNumber = isChangedNumber ? itemNumber+1 : itemNumber
+                
+                if(isChangedNumbercount && isPushed) {
+                    isPushed = true
+                    prev.push(itemNumber)
+                }
+                prev.push(newNumber)
+                return prev;
+            }, [])
+            gridTemplateRows.innerHTML = rows.split(' ')
+            gridTemplateColumns.innerHTML = columns.split(' ')
             log(text)
             
         })
