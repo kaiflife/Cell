@@ -26,7 +26,7 @@
     }
     main {
         height: calc(100vh - 32px);
-        display: flex;
+        display: grid;
     }
     .cell {
         flex: 1;
@@ -43,10 +43,8 @@
 
 <body>
 <header>
-  <input list="browsers" name="browser" id="browser">
-  <datalist id="browsers">
-    <option value="ok">
-    <option value="cancel">
+  <input onchange="changeMenu(this)" list="menuList" name="menuInput" id="menuInput">
+  <datalist id="menuList">
     <option value="vertical">
     <option value="horizontal">
     <option value="undo">
@@ -55,9 +53,12 @@
 <input class="level" type="number" name="level" id="level" value="1" />
 </header>
 <main>
-<div onclick="selectCell(this)" class="cell"></div>
+<div onclick="selectCell(this)" class="cell 1"></div>
 </main>
 <footer>
+    <span id="gridTemplateRows">1 1 2 3</span>
+    <span id="gridTemplateColumns">1 2</span>
+    <span data-template='[[1,1],[2,3]]'></span>
     <div onclick="selectCell(this)" class="cell"></div>
 </footer>
 </body>
@@ -67,9 +68,26 @@ log(cell)
 cell.classList.toggle('selected')
 }
 
+function changeMenu({ value }) {
+    if(value === 'vertical') {
+        const selects = document.querySelectorAll('.selected');
+        Array.from(selects).forEach(selected => {
+            log(selected.className)
+            rows = gridTemplateRows.innerText.join(' ')
+            columns = gridTemplateColumns.innerText.join(' ')
+            rowsLength = rows.filter(item=>item===selected).length;
+            columnsLength = columns.filter(item=>item===selected).length;
+            mainDirection = rowsLength > columnsLength ? rowsLength : columnsLength
+            
+            log(text)
+            
+        })
+    }
+}
 
-function log(text, subtext) {
-console.log(text + subtext);
+
+function log(text, subtext = '') {
+    console.log(text + subtext);
 }
 
 function createEl( {
