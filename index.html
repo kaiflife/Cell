@@ -52,19 +52,28 @@
   </datalist>
 <input class="level" type="number" name="level" id="level" value="1" />
 </header>
-<main id='main'>
-<div style="grid-row: 1" onclick="selectCell(this)" class="cell"></div>
+<main id='main' style="grid-template-areas: 1">
+<div style="grid-area: 1" class="cell"></div>
 </main>
 <footer>
     <span id="gridTemplateRowsEl">1</span>
     <span id="columnsLengthEl">1</span>
-    <div onclick="selectCell(this)" class="cell"></div>
 </footer>
 </body>
 <script>
-globalColumnsLength = 1
 
-function selectCell(cell) {
+function toggleMainClick(value) {
+    const actionName = value ? 'addEventListener' : 'removeEventListener'
+    main[actionName]('click', selectCell)
+}
+
+toggleMainClick(true)
+
+function selectCell(event) {
+    cell = event.target
+    
+    if (!cell.classList.contains('cell')) return
+    
     cell.classList.toggle('selected')
 }
 
@@ -75,7 +84,7 @@ function createCells({ ids }) {
         createEl({
             className: 'cell',
             style: { 
-                ['grid-row']: id,
+                ['grid-area']: id,
             }
         })
     ))
@@ -84,16 +93,23 @@ function createCells({ ids }) {
 }
 
 function changeMainStyle(){
-    rows = getRows()
-    rowItemsCount = rows.length / globalColumnsLength
-    main.style.gridTemplateArea = rangeArray(1, globalColumnsLength).reduce((prev, item, index) => {
+    rows = getRows({ isNumberArray: true })
+    rowItemsCount = rows.length / getColumnsLength()
+    
+    gridTemplateArea = rangeArray(1, getColumnsLength()).reduce((prev, item, index) => {
         if (item != 1) {
-            prev += "\n"
+            prev += " "
         }
         start = index * rowItemsCount
         end = rowItemsCount * item
-        prev += rows.slice()
-    })
+        prev += `\"${rows.slice(start, end).join(' ')}\"`
+        
+        return prev
+    }, "")
+    
+    log(gridTemplateArea)
+    
+    main.style['grid-template-areas'] = gridTemplateArea
 }
 
 function getRows(props) {
@@ -104,7 +120,7 @@ function getRows(props) {
 }
 
 function getColumnsLength() {
-    return +columnsLength.innerText
+    return +columnsLengthEl.innerText
 }
 
 function formatNewItems(items) {
@@ -121,6 +137,7 @@ function changeMenu({ value }) {
         getAllCells().forEach(selected => {
             rows = getRows({ isNumberArray: true })
             gridTemplateRowsEl.innerHTML = formatNewItems(rows).join(' ')
+            changeMainStyle()
         })
     }
 }
