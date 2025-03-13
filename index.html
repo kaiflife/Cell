@@ -26,7 +26,10 @@
     }
     main {
         height: calc(100vh - 32px);
+        width: 100vw;
         display: grid;
+        grid-template-rows: repeat(auto-fill);
+        grid-template-columns: repeat(auto-fill);
     }
     .cell {
         flex: 1;
@@ -53,7 +56,7 @@
 <input class="level" type="number" name="level" id="level" value="1" />
 </header>
 <main id='main' style="grid-template-areas: 1">
-<div style="grid-area: 1" class="cell"></div>
+<div class="cell" style="grid-area: 1;"></div>
 </main>
 <footer>
     <span id="gridTemplateRowsEl">1</span>
@@ -107,8 +110,6 @@ function changeMainStyle(){
         return prev
     }, "")
     
-    log(gridTemplateArea)
-    
     main.style['grid-template-areas'] = gridTemplateArea
 }
 
@@ -132,13 +133,15 @@ function formatNewItems(items) {
     return [...items, ...newNumbers]
 }
 
-function changeMenu({ value }) {
+function changeMenu(menuEl) {
+    const { value } = menuEl
     if(value === 'verticalSlice') {
         getAllCells().forEach(selected => {
             rows = getRows({ isNumberArray: true })
             gridTemplateRowsEl.innerHTML = formatNewItems(rows).join(' ')
-            changeMainStyle()
         })
+        changeMainStyle()
+        menuEl.value = ''
     }
 }
 
