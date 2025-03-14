@@ -2,211 +2,248 @@
 <html lang="en">
 
 <head>
-    <meta charset="utf-8">
-    <meta
+  <meta charset="utf-8">
+  <meta
     name="viewport"
     content="width=device-width, initial-scale=1.0"
-    >
-    <meta
+  >
+  <meta
     name="description"
     content=""
-    >
-    <title>constructor</title>
+  >
+  <title>constructor</title>
 </head>
 <style>
-    body {
-        margin: 0;
-        padding: 0;
-    }
-    header {
-        height: 32px;
-    }
-    footer{
-        display: none;
-    }
-    main {
-        height: calc(100vh - 32px);
-        width: 100vw;
-        display: grid;
-    }
-    .cell {
-        flex: 1;
-        border: 1px solid black;
+  body {
+    margin: 0;
+    padding: 0;
+  }
 
-        &.selected {
-        border-color: red;
+  header {
+    height: 32px;
+  }
+
+  footer {
+    display: none;
+  }
+
+  main {
+    height: calc(100vh - 32px);
+    width: 100vw;
+    display: grid;
+  }
+
+  .cell {
+    flex: 1;
+    border: 1px solid black;
+
+    &.selected {
+      border-color: red;
     }
-}
-.level {
+  }
+
+  .level {
     width: 32px;
-}
+  }
 </style>
 
 <body>
-<header>
-  <input onchange="changeMenu(this)" list="menuList" name="menuInput" id="menuInput">
-  <datalist id="menuList">
-    <option value="verticalSlice">
-    <option value="horizontalSlice">
-    <option value="undo">
-    <option value="redo">
-  </datalist>
-<input class="level" type="number" name="level" id="level" value="1" />
-</header>
-<main id='main' style='grid-template-areas: "c1"'>
-<div class="cell" style="grid-area: c1;"></div>
-</main>
-<footer>
+  <header>
+    <input
+      onchange="changeMenu(this)"
+      list="menuList"
+      name="menuInput"
+      id="menuInput"
+    >
+    <datalist id="menuList">
+      <option value="verticalSlice">
+      <option value="horizontalSlice">
+      <option value="undo">
+      <option value="redo">
+      <option value="unselectAll">
+    </datalist>
+    <input
+      class="level"
+      type="number"
+      name="level"
+      id="level"
+      value="1"
+    />
+  </header>
+  <main
+    id='main'
+    style='grid-template-areas: "c1"'
+  >
+    <div
+      class="cell"
+      style="grid-area: c1;"
+    ></div>
+  </main>
+  <footer>
     <span id="gridTemplateRowsEl">1</span>
     <span id="columnsLengthEl">1</span>
-</footer>
+  </footer>
 </body>
 <script>
 
-function toggleMainClick(value) {
+  function toggleMainClick(value) {
     const actionName = value ? 'addEventListener' : 'removeEventListener'
     main[actionName]('click', selectCell)
-}
-
-toggleMainClick(true)
-
-function selectCell(event) {
-    cell = event.target
-    
-    if (!cell.classList.contains('cell')) return
-    
-    cell.classList.toggle('selected')
-}
-
-function createCells({ ids }) {
-    fragment = new DocumentFragment()
-    
-    ids.forEach(id => fragment.append(
-        createEl({
-            className: 'cell',
-            style: { 
-                ['grid-area']: `c${id}`,
-            }
-        })
-    ))
-    
-    main.append(fragment)
-}
-
-function changeMainStyle(){
-    rows = getRows({ isNumberArray: true })
-    rowItemsCount = rows.length / getColumnsLength()
-    
-    gridTemplateArea = rangeArray(1, getColumnsLength()).reduce((prev, item, index) => {
-        if (item != 1) {
-            prev += " "
-        }
-        start = index * rowItemsCount
-        end = rowItemsCount * item
-        prev += `"${rows.slice(start, end).join(' ')}"`
-        
-        return prev
-    }, "")
-    
-    main.style['grid-template-areas'] = gridTemplateArea
-}
-
-function getRows(props) {
-    const { isNumberArray } = {isNumberArray: false, ...props}
-    rows = gridTemplateRowsEl.innerText
-    
-    return isNumberArray ? rows.split(' ').map(a => +a) : rows
-}
-
-function getColumnsLength() {
-    return +columnsLengthEl.innerText
-}
-
-function formatNewItems(items) {
-    newMax = Math.max(...items)+1
-    sliceCount = +level.value -1
-    newNumbers = rangeArray(newMax, newMax + sliceCount)
-    createCells({ ids: newNumbers })
-    
-    return [...items, ...newNumbers]
-}
-
-function changeMenu(menuEl) {
-    const { value } = menuEl
-    if(value === 'verticalSlice') {
-        getAllCells().forEach(selected => {
-            rows = getRows({ isNumberArray: true })
-            gridTemplateRowsEl.innerHTML = formatNewItems(rows).join(' ')
-        })
-        changeMainStyle()
-        menuEl.value = ''
-    }
-}
-
-function getAllCells(){
-    const selects = document.querySelectorAll('.selected');
-    return Array.from(selects)
-}
-
-function log(text, subtext = '') {
-    console.log(text + subtext);
-}
-
-function createEl( {
-elName = 'div',
-className = '',
-value = null,
-type = '',
-innerHTML = '',
-appendTo = '',
-onclick = null,
-onchange = null,
-style = {},
-datasets = [],
-appendInnerHTML = '',
-}) {
-const el = document.createElement(elName)
-
-if (className) el.className = className
-if (type) el.type = type
-if (value) el.value = value
-if (style) {
-Object.keys(style).forEach(field => {
-el.style[field] = style[field]
-})
-}
-if (innerHTML) el.innerHTML = innerHTML
-if (onclick) el.onclick = onclick
-if (onchange) el.onchange = onchange
-if (appendInnerHTML) el.append(appendInnerHTML)
-if (datasets.length) {
-datasets.forEach(dataset => {
-el.dataset[dataset.name] = dataset.value
-})
-}
-
-if (appendTo) {
-if (appendTo === 'body') {
-document.body.append(el)
-} else {
-document.querySelector(appendTo).append(el)
-}
-}
-return el
-}
-
-function rangeArray(from = 0, to = 0) {
-  if (from !== 0 && to !== 0) {
-    const newArray = []
-    for (let i = from; i <= to; i++) {
-      newArray.push(i)
-    }
-
-    return newArray
   }
 
-  return [...new Array(from || to).keys()]
-}
+  toggleMainClick(true)
+
+  function selectCell(event) {
+    cell = event.target
+
+    if (!cell.classList.contains('cell')) return
+
+    cell.classList.toggle('selected')
+  }
+
+  function createCells({ ids }) {
+    fragment = new DocumentFragment()
+
+    ids.forEach(id => fragment.append(
+      createEl({
+        className: 'cell',
+        style: {
+          ['grid-area']: `c${id}`,
+        }
+      })
+    ))
+
+    main.append(fragment)
+  }
+
+  function changeMainStyle() {
+    rows = getRows({ isNumberArray: true })
+    rowItemsCount = rows.length / getColumnsLength()
+
+    cellRows = rows.map(cellNumber => `c${cellNumber}`)
+
+    gridTemplateArea = rangeArray(1, getColumnsLength()).reduce((prev, item, index) => {
+      if (item != 1) {
+        prev += " "
+      }
+      start = index * rowItemsCount
+      end = rowItemsCount * item
+      prev += `"${cellRows.slice(start, end).join(' ')}"`
+
+      return prev
+    }, "")
+
+    main.style['grid-template-areas'] = gridTemplateArea
+  }
+
+  function getRows(props) {
+    const { isNumberArray } = { isNumberArray: false, ...props }
+    rows = gridTemplateRowsEl.innerText
+
+    return isNumberArray ? rows.split(' ').map(a => +a) : rows
+  }
+
+  function getColumnsLength() {
+    return +columnsLengthEl.innerText
+  }
+
+  function formatNewItems(items) {
+    newMax = Math.max(...items) + 1
+    sliceCount = +level.value - 1
+    newNumbers = rangeArray(newMax, newMax + sliceCount)
+    createCells({ ids: newNumbers })
+
+    return [...items, ...newNumbers]
+  }
+
+  function changeMenu(menuEl) {
+    const { value } = menuEl
+    
+    if (value === 'verticalSlice') {
+      getSelectedCells().forEach(selected => {
+        rows = getRows({ isNumberArray: true })
+        gridTemplateRowsEl.innerHTML = formatNewItems(rows).join(' ')
+      })
+      changeMainStyle()
+    } else if (value === 'horizontalSlice') {
+      getSelectedCells().forEach(selected => {
+        rows = getRows({ isNumberArray: true })
+        gridTemplateRowsEl.innerHTML = formatNewItems(rows).join(' ')
+      })
+      changeMainStyle()
+    } else if (value === 'unselectAll') {
+      getSelectedCells().forEach(selectedCell => {
+        selectedCell.classList.toggle('selected')
+      })
+    }
+
+    menuEl.value = ''
+  }
+
+  function getSelectedCells() {
+    const selects = document.querySelectorAll('.selected');
+    return Array.from(selects)
+  }
+
+  function log(text, subtext = '') {
+    console.log(text + subtext);
+  }
+
+  function createEl({
+    elName = 'div',
+    className = '',
+    value = null,
+    type = '',
+    innerHTML = '',
+    appendTo = '',
+    onclick = null,
+    onchange = null,
+    style = {},
+    datasets = [],
+    appendInnerHTML = '',
+  }) {
+    const el = document.createElement(elName)
+
+    if (className) el.className = className
+    if (type) el.type = type
+    if (value) el.value = value
+    if (style) {
+      Object.keys(style).forEach(field => {
+        el.style[field] = style[field]
+      })
+    }
+    if (innerHTML) el.innerHTML = innerHTML
+    if (onclick) el.onclick = onclick
+    if (onchange) el.onchange = onchange
+    if (appendInnerHTML) el.append(appendInnerHTML)
+    if (datasets.length) {
+      datasets.forEach(dataset => {
+        el.dataset[dataset.name] = dataset.value
+      })
+    }
+
+    if (appendTo) {
+      if (appendTo === 'body') {
+        document.body.append(el)
+      } else {
+        document.querySelector(appendTo).append(el)
+      }
+    }
+    return el
+  }
+
+  function rangeArray(from = 0, to = 0) {
+    if (from !== 0 && to !== 0) {
+      const newArray = []
+      for (let i = from; i <= to; i++) {
+        newArray.push(i)
+      }
+
+      return newArray
+    }
+
+    return [...new Array(from || to).keys()]
+  }
 
 </script>
 
