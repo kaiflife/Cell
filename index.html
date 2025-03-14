@@ -53,7 +53,7 @@
   </datalist>
 <input class="level" type="number" name="level" id="level" value="1" />
 </header>
-<main id='main' style="grid-template-areas: c1">
+<main id='main' style='grid-template-areas: "c1"'>
 <div class="cell" style="grid-area: c1;"></div>
 </main>
 <footer>
@@ -103,7 +103,7 @@ function changeMainStyle(){
         }
         start = index * rowItemsCount
         end = rowItemsCount * item
-        prev += `\"${rows.slice(start, end).join(' ')}\"`
+        prev += `"${rows.slice(start, end).join(' ')}"`
         
         return prev
     }, "")
