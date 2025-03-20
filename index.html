@@ -70,22 +70,29 @@
       value="1"
     />
   </header>
-  <main
-    id='main'
-    style='grid-template-areas: "c1"'
-  >
+  <main id='main' style='grid-template-areas: "c1 c2" "c3 c4"'>
     <div
       class="cell"
       style="grid-area: c1;"
     ></div>
+    <div
+      class="cell"
+      style="grid-area: c2;"
+    ></div>
+    <div
+      class="cell"
+      style="grid-area: c3;"
+    ></div>
+    <div
+      class="cell"
+      style="grid-area: c4;"
+    ></div>
   </main>
   <footer>
-    <span id="gridTemplateRowsEl">1</span>
-    <span id="columnsLengthEl">1</span>
+
   </footer>
 </body>
 <script>
-
   function toggleMainClick(value) {
     const actionName = value ? 'addEventListener' : 'removeEventListener'
     main[actionName]('click', selectCell)
@@ -101,10 +108,18 @@
     cell.classList.toggle('selected')
   }
 
-  function createCells({ ids }) {
+  function createCells({
+      direction,
+      rowsAndColumnIndex: { rows, columnIndex },
+      selectedCell,
+      place: 'after'
+  }) {
     fragment = new DocumentFragment()
+    
+    newNumbers = getNewNumbers(rows.flat())
 
-    ids.forEach(id => fragment.append(
+    newNumbers.forEach(id => 
+    fragment.append(
       createEl({
         className: 'cell',
         style: {
@@ -112,63 +127,78 @@
         }
       })
     ))
+    
+    isStarted = false
+    cloneRows = rows.map(a => a.map(b => b))
+    if (direction === 'verticalSlice') {
+        rows.map(row => row.reduce((prev, cellNumber, index) => {
+            if(place === 'after') prev.push(cellNumber)
+            
+            if(index === columnIndex) isStarted = true
+            if (isStarted) {
+                newNumbers.forEach(newNumber => prev.push(newNumber))
+            }
+            
+            if(place === 'before') prev.push(cellNumber)
+            
+            return prev
+        }))
+    }
 
-    main.append(fragment)
+    selectedCell[place](fragment)
+  }
+  
+  function getSelectedCellId({ selectedCell }){
+      return selectedCell.style['grid-area']
+  }
+  
+  function getMainRows() {
+    gridTemplateAreas = main.style['grid-template-areas']
+    splittedRows = gridTemplateAreas.replaceAll('" ', '"columnSpace').split("columnSpace")
+    
+    return splittedRows
   }
 
-  function changeMainStyle() {
-    rows = getRows({ isNumberArray: true })
-    rowItemsCount = rows.length / getColumnsLength()
+  function getRowsAndColumnIndex({ isNumberArray, selectedCell }) {
+    columnIndex = getMainRows().findIndex(string => string.includes(getSelectedCellId({ selectedCell })))
 
-    cellRows = rows.map(cellNumber => `c${cellNumber}`)
-
-    gridTemplateArea = rangeArray(1, getColumnsLength()).reduce((prev, item, index) => {
-      if (item != 1) {
-        prev += " "
-      }
-      start = index * rowItemsCount
-      end = rowItemsCount * item
-      prev += `"${cellRows.slice(start, end).join(' ')}"`
-
-      return prev
-    }, "")
-
-    main.style['grid-template-areas'] = gridTemplateArea
-  }
-
-  function getRows(props) {
-    const { isNumberArray } = { isNumberArray: false, ...props }
-    rows = gridTemplateRowsEl.innerText
-
-    return isNumberArray ? rows.split(' ').map(a => +a) : rows
+    return {
+        rows: isNumberArray ? rows.map(row => row.split(' ').map(a => +a)) : rows,
+        columnIndex
   }
 
   function getColumnsLength() {
     return +columnsLengthEl.innerText
   }
-
-  function formatNewItems(items) {
+  
+  function getNewNumbers(items) {
     newMax = Math.max(...items) + 1
     sliceCount = +level.value - 1
-    newNumbers = rangeArray(newMax, newMax + sliceCount)
-    createCells({ ids: newNumbers })
-
-    return [...items, ...newNumbers]
+    
+    return rangeArray(newMax, newMax + sliceCount)
   }
 
   function changeMenu(menuEl) {
     const { value } = menuEl
     
     if (value === 'verticalSlice') {
-      getSelectedCells().forEach(selected => {
-        rows = getRows({ isNumberArray: true })
-        gridTemplateRowsEl.innerHTML = formatNewItems(rows).join(' ')
+      getSelectedCells().forEach(selectedCell => {
+        rowsAndColumnIndex = getRowsAndColumnIndex({ isNumberArray: true, selectedCell })
+        createCells({
+            direction: value,
+            rowsAndColumnIndex,
+            selectedCell
+        }).join(' ')
       })
       changeMainStyle()
     } else if (value === 'horizontalSlice') {
-      getSelectedCells().forEach(selected => {
-        rows = getRows({ isNumberArray: true })
-        gridTemplateRowsEl.innerHTML = formatNewItems(rows).join(' ')
+      getSelectedCells().forEach(selectedCell => {
+        rowsAndColumnIndex = getRowsAndColumnIndex({ isNumberArray: true, selectedCell })
+        createCells({
+            direction: value,
+            rowsAndColumnIndex,
+            selectedCell
+        }).join(' ')
       })
       changeMainStyle()
     } else if (value === 'unselectAll') {
@@ -243,6 +273,10 @@
     }
 
     return [...new Array(from || to).keys()]
+  }
+  
+  function compare(id1, id2) {
+      return String(id1) === String(id2);
   }
 
 </script>
