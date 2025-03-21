@@ -119,17 +119,19 @@
     newNumbers = getNewNumbers(rows.flat())
 
     newNumbers.forEach(id => 
-    fragment.append(
-      createEl({
-        className: 'cell',
-        style: {
-          ['grid-area']: `c${id}`,
-        }
-      })
-    ))
+        fragment.append(
+          createEl({
+            className: 'cell',
+            style: {
+              ['grid-area']: `c${id}`,
+            }
+          })
+        )
+    )
     
     isStarted = false
     cloneRows = rows.map(a => a.map(b => b))
+    
     if (direction === 'verticalSlice') {
         rows.map(row => row.reduce((prev, cellNumber, index) => {
             if(place === 'after') prev.push(cellNumber)
@@ -165,6 +167,7 @@
     return {
         rows: isNumberArray ? rows.map(row => row.split(' ').map(a => +a)) : rows,
         columnIndex
+    }
   }
 
   function getColumnsLength() {
