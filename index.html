@@ -70,11 +70,10 @@
       value="1"
     />
   </header>
-  <main id='main' style='grid-template-areas: "c1 c1 c2" "c1 c1 c2" "c3 c3 c3"'>
-    <div
-      class="cell"
-      style="grid-area: c1;"
-    ></div>
+  <main
+    id='main'
+    style='grid-template-areas: "c1 c1 c2" "c1 c1 c2" "c3 c3 c3"'
+  >
     <div
       class="cell"
       style="grid-area: c1;"
@@ -97,9 +96,9 @@
     const actionName = value ? 'addEventListener' : 'removeEventListener'
     main[actionName]('click', selectCell)
   }
-  
+
   function getLevel() {
-      return +level.value
+    return +level.value
   }
 
   toggleMainClick(true)
@@ -113,113 +112,97 @@
   }
 
   function createCells({
-      direction,
-      rowsNumbers,
-      selectedCell,
-      place = 'after'
+    direction,
+    selectedCell,
+    place = 'after'
   }) {
-    fragment = new DocumentFragment()
-    
-    newIds = getNewIds(rows.flat())
+    rows = getRows()
 
-    newIds.forEach(id => 
-        fragment.append(
-          createEl({
-            className: 'cell',
-            style: {
-              ['grid-area']: `c${id}`,
-            }
-          })
-        )
-    )
-    
-    formatCell = (cellId) => `c${cellId}`
-    
-    newRows = rowsNumbers.reduce((prevString, row, rowIndex) => {
-        row.forEach((cellNumber, index) => {
-            if (direction === 'verticalSlice') {
-                if(place === 'after') prevString += formatCell(cellNumber)
-                
-                idNumber = getSelectedCellId(selectedCell).idNumber
-                
-                if (compare(cellNumber, idNumber)) {
-                    newNumbers.forEach(number => prevString += formatCell(number))
-                }
-                
-                if(place === 'before') prevString += formatCell(cellNumber)
-            }
+    fragment = new DocumentFragment()
+
+    newIds = getNewIds(rows.flat().map(id => id.slice(1)))
+
+    newIds.forEach(id =>
+      fragment.append(
+        createEl({
+          className: 'cell',
+          style: {
+            ['grid-area']: id,
+          }
         })
-        
-        return `${!!rowIndex ? ' ' : ''}${prevString}"`
+      )
+    )
+
+    newRows = rows.reduce((prevString, row, rowIndex) => {
+      row.forEach((cellId, index) => {
+        if (direction === 'verticalSlice') {
+          if (place === 'after') prevString += cellId
+
+          selectedId = getSelectedCellId({ selectedCell }).idString
+
+          if (compare(cellId, selectedId)) {
+            newIds.forEach(newId => prevString += newId)
+          }
+
+          if (place === 'before') prevString += cellId
+        }
+      })
+
+      return `${!!rowIndex ? ' ' : ''}${prevString}"`
     }, '')
-    
+
     setMainRows({ newRows })
 
     selectedCell[place](fragment)
   }
-  
-  function getSelectedCellId({ selectedCell }){
-      idString = selectedCell.style['grid-area']
-      return { idString, idNumber: idString.slice(1) }
+
+  function getSelectedCellId({ selectedCell }) {
+    idString = selectedCell.style['grid-area']
+    return { idString, idNumber: Number(idString.slice(1)) }
   }
-  
+
   function getMainRows() {
     gridTemplateAreas = main.style['grid-template-areas']
     splittedRows = gridTemplateAreas.replaceAll('" ', '"columnSpace').split("columnSpace")
-    
+
     return splittedRows
   }
-  
+
   function setMainRows({ newRows }) {
-      main.style['grid-template-areas'] = newRows
+    main.style['grid-template-areas'] = newRows
   }
 
-  function getRowsNumbers({ isNumberArray }) {
+  function getRows() {
     rows = getMainRows()
-    splittedRows = rows.map(row => row.split(' '))
 
-    return splittedRows.map(a => +a))
+    return splittedRows = rows.map(row => row.split(' '))
   }
 
   function getColumnsLength() {
     return +columnsLengthEl.innerText
   }
-  
+
   function getNewIds(items) {
     newMax = Math.max(...items) + 1
     sliceCount = +level.value - 1
-    
-    return rangeArray(
-        newMax,
-        newMax + sliceCount
-    )
+
+    return rangeArray({
+      from: newMax,
+      to: newMax + sliceCount,
+      before: 'c',
+    })
   }
 
   function changeMenu(menuEl) {
     const { value } = menuEl
-    
-    if (value === 'verticalSlice') {
+
+    if (value === 'verticalSlice' || value === 'horizontalSlice') {
       getSelectedCells().forEach(selectedCell => {
-        rowsNumbers = getRowsNumbers()
-        
         createCells({
-            direction: value,
-            rowsNumbers,
-            selectedCell
-        }).join(' ')
+          direction: value,
+          selectedCell
+        })
       })
-      changeMainStyle()
-    } else if (value === 'horizontalSlice') {
-      getSelectedCells().forEach(selectedCell => {
-        rows = getRows()
-        
-        createCells({
-            direction: value,
-            rowsNumbers,
-            selectedCell
-        }).join(' ')
-      })
-      changeMainStyle()
     } else if (value === 'unselectAll') {
       getSelectedCells().forEach(selectedCell => {
         selectedCell.classList.toggle('selected')
@@ -281,21 +264,23 @@
     return el
   }
 
-  function rangeArray(from = 0, to = 0) {
-    if (from !== 0 && to !== 0) {
-      const newArray = []
-      for (let i = from; i <= to; i++) {
-        newArray.push(i)
-      }
+  function rangeArray({ from = 0, to = 0, before = '', after = '' }) {
+    const newArray = []
 
-      return newArray
+    for (let i = from; i <= to; i++) {
+      let value = i
+
+      if (before) value = `${before}${value}`;
+      if (after) value = `${value}${after}`
+
+      newArray.push(value)
     }
 
-    return [...new Array(from || to).keys()]
+    return newArray
   }
-  
+
   function compare(id1, id2) {
-      return String(id1) === String(id2);
+    return String(id1) === String(id2);
   }
 
 </script>
