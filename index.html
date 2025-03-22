@@ -72,7 +72,7 @@
   </header>
   <main
     id='main'
-    style='grid-template-areas: "c1 c1 c2" "c1 c1 c2" "c3 c3 c3"'
+    style='grid-template-areas: "c1 c1 c2" "c1 c1 c2" "c3 c4 c5"'
   >
     <div
       class="cell"
@@ -85,6 +85,14 @@
     <div
       class="cell"
       style="grid-area: c3;"
+    ></div>
+    <div
+      class="cell"
+      style="grid-area: c4;"
+    ></div>
+    <div
+      class="cell"
+      style="grid-area: c5;"
     ></div>
   </main>
   <footer>
@@ -116,9 +124,29 @@
     selectedCell,
     place = 'after'
   }) {
+    selectedId = getSelectedCellId({ selectedCell }).idString
     rows = getRows()
-    
-    log(rows)
+
+    let startSelectedCellColumnIndex = null;
+    let endSelectedCellColumnIndex = null;
+    let startSelectedCellIndex = null;
+    let endSelectedCellIndex = 0;
+    let isStarted = false;
+
+    rows.some(cellIds => {
+      cellIds.some((cellId, cellIndex) => {
+        const isSameId = compare(cellId, selectedId);
+
+        if (isSameId) {
+          if (startSelectedCellIndex === null) startSelectedCellIndex = cellIndex;
+
+          isStarted = true
+          endSelectedCellIndex = cellIndex;
+        }
+
+        return isStarted && !isSameId
+      })
+    })
 
     fragment = new DocumentFragment()
 
@@ -134,25 +162,60 @@
         })
       )
     )
-    
-    selectedId = getSelectedCellId({ selectedCell }).idString
 
-    newRows = rows.reduce((prevString, row, rowIndex) => {
-      row.forEach((cellId, index) => {
-        if (direction === 'verticalSlice') {
-          if (compare(cellId, selectedId)) {
-            if (place === 'after') {
-              
-            }
-          }
-          
-          prevString += cellId
-          
-          if (place === 'before') prevString += cellId
+    // Найти алгоритм. Должно работать так
+    a = `
+        "c1 c1 c2" "c1 c1 c2" "c3 c4 c5"
+
+Напиши алгоритм на js
+
+Цель c1, добавляем новую часть до c1, вывод будет следующий
+"c6 c6 c1 c1 c2 c2" "c6 c6 c1 c1 c2 c2" "c3 c3 c4 c4 c5 c5"
+
+Цель c1, добавляем новую часть после c1, вывод будет следующий
+"c1 c1 c6 c6 c2 c2" "c1 c1 c6 c6 c2 c2" "c3 c3 c4 c4 c5 c5"
+
+Цель c2, добавляем новую часть до c2, вывод будет следующий
+"c1 c1 c1 c1 c1 c6 c6 c2 c2" "c1 c1 c1 c1 c1 c6 c6 c2 c2" "c3 c3 c3 c4 c4 c4 c5 c5 c5"
+
+Цель c2, добавляем новую часть после c2, то вывод будет следующий
+"c1 c1 c1 c1 c1 c2 c2 c6 c6" "c1 c1 c1 c1 c1 c2 c2 c6 c6" "c3 c3 c3 c4 c4 c4 c5 c5 c5"
+    `
+
+    newRows = rows.reduce((prevString, cellIds, rowIndex) => {
+      cellIds.forEach((cellId, cellIndex) => {
+        isFirstCellIndex = !cellIndex;
+
+        const addNewIds = () => {
+          newIds.forEach((newId, newCellIdIndex) => {
+            const isFirstNewCellIdsIndex = !newCellIdIndex;
+
+            prevString += `${isFirstCellIndex && isFirstNewCellIdsIndex ? '' : ' '}${newId}`
+          })
         }
+
+        if (isFirstCellIndex) prevString += `${!!rowIndex ? ' ' : ''}"`;
+
+        const oldString = `${isFirstCellIndex ? '' : ' '}${cellId}`;
+
+        if (direction === 'verticalSlice') {
+          if (place === 'before' && compare(startSelectedCellIndex, cellIndex)) {
+            addNewIds();
+
+            prevString += cellId
+          } else if (place === 'after' && compare(endSelectedCellIndex, cellIndex)) {
+            prevString += oldString
+
+            addNewIds();
+          } else {
+            prevString += oldString
+          }
+        }
+
+        if (cellIndex === cellIds.length - 1) prevString += `"`
       })
 
-      return `${!!rowIndex ? ' ' : ''}${prevString}"`
+      return prevString
     }, '')
 
     setMainRows({ newRows })
@@ -173,7 +236,7 @@
   }
 
   function setMainRows({ newRows }) {
-    log(newRows)
+    log('newRows', newRows)
     main.style['grid-template-areas'] = newRows
   }
 
@@ -222,8 +285,8 @@
     return Array.from(selects)
   }
 
-  function log(text, subtext = '') {
-    console.log(text + subtext);
+  function log(title, value) {
+    console.log(`${title} ${value}`);
   }
 
   function createEl({
