@@ -117,6 +117,8 @@
     place = 'after'
   }) {
     rows = getRows()
+    
+    log(rows)
 
     fragment = new DocumentFragment()
 
@@ -132,18 +134,20 @@
         })
       )
     )
+    
+    selectedId = getSelectedCellId({ selectedCell }).idString
 
     newRows = rows.reduce((prevString, row, rowIndex) => {
       row.forEach((cellId, index) => {
         if (direction === 'verticalSlice') {
-          if (place === 'after') prevString += cellId
-
-          selectedId = getSelectedCellId({ selectedCell }).idString
-
           if (compare(cellId, selectedId)) {
-            newIds.forEach(newId => prevString += newId)
+            if (place === 'after') {
+              
+            }
           }
-
+          
+          prevString += cellId
+          
           if (place === 'before') prevString += cellId
         }
       })
@@ -169,13 +173,14 @@
   }
 
   function setMainRows({ newRows }) {
+    log(newRows)
     main.style['grid-template-areas'] = newRows
   }
 
   function getRows() {
     rows = getMainRows()
 
-    return splittedRows = rows.map(row => row.split(' '))
+    return splittedRows = rows.map(row => row.replaceAll(`"`, '').split(' '))
   }
 
   function getColumnsLength() {
