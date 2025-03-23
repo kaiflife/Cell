@@ -115,14 +115,65 @@
     cell.classList.toggle('selected')
   }
 
+  function verticalSlice({
+    place,
+    cellId,
+    selectedId,
+    startSelectedCellIndex,
+    cellIndex,
+    prevString,
+    oldString,
+    endSelectedCellIndex,
+    addNewIds,
+  }) {
+    if (place === 'before' && compare(cellId, selectedId) && compare(startSelectedCellIndex, cellIndex)) {
+      addNewIds();
+
+      prevString += oldString
+    } else if (place === 'after' && compare(cellId, selectedId) && compare(endSelectedCellIndex, cellIndex)) {
+      prevString += oldString
+
+      addNewIds({ place });
+    } else {
+      prevString += oldString
+    }
+  }
+  
+  function horizontalSlice({
+    place,
+    cellId,
+    selectedId,
+    startSelectedCellIndex,
+    cellIndex,
+    prevString,
+    oldString,
+    endSelectedCellIndex,
+    addNewIds,
+  }) {
+    if (place === 'before' && compare(cellId, selectedId) && compare(startSelectedCellIndex, cellIndex)) {
+      addNewIds();
+
+      prevString += oldString
+    } else if (place === 'after' && compare(cellId, selectedId) && compare(endSelectedCellIndex, cellIndex)) {
+      prevString += oldString
+
+      addNewIds({ place });
+    } else {
+      prevString += oldString
+    }
+  }
+
   function createCells({
     direction,
     selectedCell,
     place = 'after'
   }) {
+    const isVerticalDirection = direction === 'verticalSlice';
+    const isHorizontalDirection = direction === 'horizontalSlice';
+
     selectedId = getCellId({ cellEl: selectedCell }).idString
 
-    rows = getRows()
+    rows = isVerticalDirection ? getRows() : isHorizontalDirection ? getColumns() : [];
 
     let startSelectedCellIndex = null;
     let endSelectedCellIndex = 0;
@@ -187,17 +238,29 @@
         const oldString = `${isFirstCellIndex ? '' : ' '}${cellId}`;
 
         if (direction === 'verticalSlice') {
-          if (place === 'before' && compare(cellId, selectedId) && compare(startSelectedCellIndex, cellIndex)) {
-            addNewIds();
-
-            prevString += oldString
-          } else if (place === 'after' && compare(cellId, selectedId) && compare(endSelectedCellIndex, cellIndex)) {
-            prevString += oldString
-
-            addNewIds({ place });
-          } else {
-            prevString += oldString
-          }
+          verticalSlice({
+            place,
+            cellId,
+            selectedId,
+            startSelectedCellIndex,
+            cellIndex,
+            prevString,
+            oldString,
+            endSelectedCellIndex,
+            addNewIds,
+          })
+        } else if (direction === 'horizontalSlice') {
+          horizontalSlice({
+            place,
+            cellId,
+            selectedId,
+            startSelectedCellIndex,
+            cellIndex,
+            prevString,
+            oldString,
+            endSelectedCellIndex,
+            addNewIds,
+          })
         }
 
         if (cellIndex === cellIds.length - 1) prevString += `"`
@@ -237,6 +300,12 @@
     rows = getMainRows()
 
     return splittedRows = rows.map(row => row.replaceAll(`"`, '').split(' '))
+  }
+  
+  function getColumns() {
+    rows = getRows();
+
+    return rows.map((rowIds, rowIndex) => rowIds.map((rowId, rowIdIndex) => rows[rowIdIndex][rowIndex]))
   }
 
   function getColumnsLength() {
