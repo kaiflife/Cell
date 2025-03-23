@@ -109,6 +109,13 @@
     return +level.value
   }
 
+  function doubleSubstring(str, substring) {
+    // Создаем регулярное выражение для поиска подстроки с учетом пробелов
+    const regex = new RegExp(`(${substring})`, 'g');
+    // Заменяем каждое вхождение подстроки на удвоенное с пробелом
+    return str.replace(regex, '$1 $1');
+  }
+
   toggleMainClick(true)
 
   function selectCell(event) {
@@ -119,66 +126,6 @@
     cell.classList.toggle('selected')
   }
 
-function processCells(inputString, selectedCell, newCellPosition = 'after') {
-    // Возможные позиции новой ячейки
-    const validPositions = ['before', 'after'];
-    
-    // Проверка корректности позиции
-    if (!validPositions.includes(newCellPosition)) {
-        throw new Error('Некорректная позиция новой ячейки. Допустимые значения: "before", "after"');
-    }
-    
-    // 1. Разбиваем строку на массив ячеек
-    const cells = inputString.split(' ');
-    
-    // 2. Находим индекс выбранной ячейки
-    const selectedIndex = cells.indexOf(selectedCell);
-    
-    // 3. Подсчитываем количество выбранных ячеек
-    const selectedCount = cells.filter(cell => cell === selectedCell).length;
-    
-    // 4. Подсчитываем общее количество ячеек
-    const totalCells = cells.length;
-    
-    // 5. Определяем номер новой ячейки
-    const maxCellNumber = Math.max(...cells.map(cell => parseInt(cell.substring(1))));
-    const newCellNumber = maxCellNumber + 1;
-    const newCell = `c${newCellNumber}`;
-    
-    // 6. Создаем новый массив ячеек
-    let result = [];
-    
-    // Добавляем ячейки до выбранной
-    for (let i = 0; i < selectedIndex; i++) {
-        result.push(cells[i]);
-    }
-    
-    // Добавляем выбранную ячейку
-    result.push(selectedCell);
-    
-    // Определяем позицию вставки новой ячейки
-    if (newCellPosition === 'after') {
-        // Добавляем новую ячейку после выбранной
-        for (let i = 0; i < selectedCount; i++) {
-            result.push(newCell);
-        }
-    } else {
-        // Добавляем новую ячейку перед выбранной
-        result = result.slice(0, selectedIndex).concat(
-            Array(selectedCount).fill(newCell),
-            selectedCell,
-            result.slice(selectedIndex + 1)
-        );
-    }
-    
-    // 7. Удваиваем все остальные ячейки
-    for (let i = selectedIndex + 1; i < cells.length; i++) {
-        result.push(cells[i], cells[i]);
-    }
-    
-    return result.join(' ');
-}
-
   function createCells({
     direction,
     selectedCell,
@@ -186,15 +133,7 @@ function processCells(inputString, selectedCell, newCellPosition = 'after') {
   }) {
     selectedId = getSelectedCellId({ selectedCell }).idString
     rows = getRows()
-    
-    log(getMainRows())
-    
-    result = getMainRows().map(rows => processCells(rows, selectedId))
-    
-    log('result', result)
 
-    let startSelectedCellColumnIndex = null;
-    let endSelectedCellColumnIndex = null;
     let startSelectedCellIndex = null;
     let endSelectedCellIndex = 0;
     let isStarted = false;
@@ -237,7 +176,17 @@ function processCells(inputString, selectedCell, newCellPosition = 'after') {
           newIds.forEach((newId, newCellIdIndex) => {
             const isFirstNewCellIdsIndex = !newCellIdIndex;
 
-            prevString += `${isFirstCellIndex && isFirstNewCellIdsIndex ? '' : ' '}${newId}`
+            const addIdCallback = (value, rangeIndex) => {
+              isFirstRangeIndex = !rangeIndex;
+
+              prevString += `${isFirstRangeIndex && isFirstCellIndex && isFirstNewCellIdsIndex ? '' : ' '}${newId}`
+            }
+
+            rangeArray({
+              from: startSelectedCellIndex,
+              to: endSelectedCellIndex,
+              handler: addIdCallback
+            })
           })
         }
 
@@ -246,11 +195,11 @@ function processCells(inputString, selectedCell, newCellPosition = 'after') {
         const oldString = `${isFirstCellIndex ? '' : ' '}${cellId}`;
 
         if (direction === 'verticalSlice') {
-          if (place === 'before' && compare(startSelectedCellIndex, cellIndex)) {
+          if (place === 'before' && compare(cellId, selectedId) && compare(startSelectedCellIndex, cellIndex)) {
             addNewIds();
 
             prevString += cellId
-          } else if (place === 'after' && compare(endSelectedCellIndex, cellIndex)) {
+          } else if (place === 'after' && compare(cellId, selectedId) && compare(endSelectedCellIndex, cellIndex)) {
             prevString += oldString
 
             addNewIds();
@@ -265,7 +214,13 @@ function processCells(inputString, selectedCell, newCellPosition = 'after') {
       return prevString
     }, '')
 
-    // setMainRows({ newRows })
+    Array.from(main.children).forEach(element => {
+      const elId = getSelectedCellId({ selectedCell: element }).idString;
+
+      if (!compare(elId, selectedId)) newRows = doubleSubstring(newRows, elId)
+    })
+
+    setMainRows({ newRows })
 
     selectedCell[place](fragment)
   }
@@ -277,13 +232,12 @@ function processCells(inputString, selectedCell, newCellPosition = 'after') {
 
   function getMainRows() {
     gridTemplateAreas = main.style['grid-template-areas']
-    splittedRows = gridTemplateAreas.replaceAll('" ', '"columnSpace').split("columnSpace")
+    splittedRows = gridTemplateAreas.replaceAll('" ', '"columnSpace').replaceAll('"', '').split("columnSpace")
 
     return splittedRows
   }
 
   function setMainRows({ newRows }) {
-    log('newRows', newRows)
     main.style['grid-template-areas'] = newRows
   }
 
@@ -332,10 +286,6 @@ function processCells(inputString, selectedCell, newCellPosition = 'after') {
     return Array.from(selects)
   }
 
-  function log(title, value) {
-    console.log(`${title} ${value}`);
-  }
-
   function createEl({
     elName = 'div',
     className = '',
@@ -379,14 +329,16 @@ function processCells(inputString, selectedCell, newCellPosition = 'after') {
     return el
   }
 
-  function rangeArray({ from = 0, to = 0, before = '', after = '' }) {
+  function rangeArray({ from = 0, to = 0, before = '', after = '', handler }) {
     const newArray = []
 
-    for (let i = from; i <= to; i++) {
-      let value = i
+    for (let index = from; index <= to; index++) {
+      let value = index
 
       if (before) value = `${before}${value}`;
       if (after) value = `${value}${after}`
+
+      handler?.(value, index)
 
       newArray.push(value)
     }
