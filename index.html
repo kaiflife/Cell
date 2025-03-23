@@ -72,27 +72,11 @@
   </header>
   <main
     id='main'
-    style='grid-template-areas: "c1 c1 c2" "c1 c1 c2" "c3 c4 c5"'
+    style='grid-template-areas: "c1"'
   >
     <div
       class="cell"
       style="grid-area: c1;"
-    ></div>
-    <div
-      class="cell"
-      style="grid-area: c2;"
-    ></div>
-    <div
-      class="cell"
-      style="grid-area: c3;"
-    ></div>
-    <div
-      class="cell"
-      style="grid-area: c4;"
-    ></div>
-    <div
-      class="cell"
-      style="grid-area: c5;"
     ></div>
   </main>
   <footer>
@@ -109,9 +93,14 @@
     return +level.value
   }
 
+  function getMainCells() {
+    return Array.from(main.children)
+  }
+
   function doubleSubstring(str, substring) {
     // Создаем регулярное выражение для поиска подстроки с учетом пробелов
-    const regex = new RegExp(`(${substring})`, 'g');
+    const regex = new RegExp(`(${substring})(?!\\d)`, 'g');
+
     // Заменяем каждое вхождение подстроки на удвоенное с пробелом
     return str.replace(regex, '$1 $1');
   }
@@ -131,7 +120,8 @@
     selectedCell,
     place = 'after'
   }) {
-    selectedId = getSelectedCellId({ selectedCell }).idString
+    selectedId = getCellId({ cellEl: selectedCell }).idString
+
     rows = getRows()
 
     let startSelectedCellIndex = null;
@@ -155,7 +145,7 @@
 
     fragment = new DocumentFragment()
 
-    newIds = getNewIds(rows.flat().map(id => id.slice(1)))
+    newIds = getNewIds(getMainCells().map(cellEl => getCellId({ cellEl }).idNumber))
 
     newIds.forEach(id =>
       fragment.append(
@@ -172,14 +162,16 @@
       cellIds.forEach((cellId, cellIndex) => {
         isFirstCellIndex = !cellIndex;
 
-        const addNewIds = () => {
+        const addNewIds = ({ place }) => {
+          const isPlaceAfter = place === 'after';
+
           newIds.forEach((newId, newCellIdIndex) => {
             const isFirstNewCellIdsIndex = !newCellIdIndex;
 
             const addIdCallback = (value, rangeIndex) => {
               isFirstRangeIndex = !rangeIndex;
 
-              prevString += `${isFirstRangeIndex && isFirstCellIndex && isFirstNewCellIdsIndex ? '' : ' '}${newId}`
+              prevString += `${!isPlaceAfter && isFirstRangeIndex && isFirstCellIndex && isFirstNewCellIdsIndex ? '' : ' '}${newId}`
             }
 
             rangeArray({
@@ -198,11 +190,11 @@
           if (place === 'before' && compare(cellId, selectedId) && compare(startSelectedCellIndex, cellIndex)) {
             addNewIds();
 
-            prevString += cellId
+            prevString += oldString
           } else if (place === 'after' && compare(cellId, selectedId) && compare(endSelectedCellIndex, cellIndex)) {
             prevString += oldString
 
-            addNewIds();
+            addNewIds({ place });
           } else {
             prevString += oldString
           }
@@ -214,8 +206,8 @@
       return prevString
     }, '')
 
-    Array.from(main.children).forEach(element => {
-      const elId = getSelectedCellId({ selectedCell: element }).idString;
+    getMainCells().forEach(element => {
+      const elId = getCellId({ cellEl: element }).idString;
 
       if (!compare(elId, selectedId)) newRows = doubleSubstring(newRows, elId)
     })
@@ -225,8 +217,8 @@
     selectedCell[place](fragment)
   }
 
-  function getSelectedCellId({ selectedCell }) {
-    idString = selectedCell.style['grid-area']
+  function getCellId({ cellEl }) {
+    idString = cellEl.style['grid-area']
     return { idString, idNumber: Number(idString.slice(1)) }
   }
 
