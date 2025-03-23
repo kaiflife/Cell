@@ -237,7 +237,7 @@
 
         const oldString = `${isFirstCellIndex ? '' : ' '}${cellId}`;
 
-        if (direction === 'verticalSlice') {
+        if (isVerticalDirection) {
           verticalSlice({
             place,
             cellId,
@@ -249,7 +249,7 @@
             endSelectedCellIndex,
             addNewIds,
           })
-        } else if (direction === 'horizontalSlice') {
+        } else if (isHorizontalDirection) {
           horizontalSlice({
             place,
             cellId,
