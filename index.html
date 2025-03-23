@@ -70,7 +70,7 @@
   </header>
   <main
     id="main"
-    style="grid-template-areas: 'c1'"
+    style='grid-template-areas: "c1"'
   >
     <div
       class="cell"
@@ -114,7 +114,10 @@
         .replaceAll(currentSubStringRegex, ' ')
         .replaceAll(multiplySpacesRegex, ` ${substring} `)
         .replaceAll('  ', ' ')
+        .replaceAll(`${substring} "`, `${substring}"`)
         .trim()
+        
+      console.log(slicedString, 'slicedString')
 
       const newString = rangeArray({ from: 1, to: count }).map((_, index) => substring).join(' ');
 
@@ -191,6 +194,8 @@
         });
         return prevString;
       }, '');
+      
+      console.log('stringRows 1', stringRows)
 
       getMainCells().forEach(element => {
         const elId = getCellId(element).idString;
@@ -203,10 +208,15 @@
           stringRows = replaceSubstring(stringRows, elId, newCellLength);
         }
       });
+      
+      console.log('stringRows 2', stringRows)
 
-      console.log('stringRows', stringRows);
-
-      if (isHorizontal && isLastSelectedCellIndex) stringRows = getRevertedColumns(formatMainRows(stringRows))
+      if (isHorizontal && isLastSelectedCellIndex) {
+          formattedRows = formatMainRows(stringRows)
+          stringRows = getRevertedColumns(getRows(formattedRows)).map(cellIds => `"${cellIds.join(' ')}"`).join(' ')
+      }
+      
+      console.log('stringRows', stringRows)
 
       setMainRows({ stringRows });
       selectedCell[place](fragment);
@@ -218,7 +228,7 @@
     }
 
     function formatMainRows(stringRows) {
-      return stringRows.replaceAll('" ', '"columnSpace').replaceAll('"', '').split("columnSpace");
+      return stringRows.replaceAll('" "', '"columnSpace"').replaceAll('"', '').split("columnSpace");
     }
 
     function getMainRows() {
@@ -230,15 +240,19 @@
       main.style['grid-template-areas'] = stringRows;
     }
 
-    function getRows() {
-      return getMainRows().map(row => row.replaceAll('"', '').split(' '));
+    function getRows(rows = getMainRows()) {
+      return rows.map(row => row.replaceAll('"', '').split(' '));
     }
 
     function getRevertedColumns(rows) {
-      return rows.map((cellIds, rowIndex) => {
-        if (Array.isArray(cellIds)) return cellIds.map((cellId, cellIndex) => rows[cellIndex][rowIndex]);
-
-        return cellIds;
+      return rows[0].map((cellId, cellIndex) => {
+        hasNoColumns = !rows[1]
+        isSingle = rows[0].length === 1
+        
+        // if(!isSingle && hasNoColumns) return `"${cellId}"`
+        if(hasNoColumns) return [cellId]
+        
+        return rows.map((cellIds, rowIndex) => rows[rowIndex][cellIndex]);
       });
     }
 
