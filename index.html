@@ -11,48 +11,47 @@
     name="description"
     content=""
   >
-  <title>constructor</title>
-</head>
-<style>
-  body {
-    margin: 0;
-    padding: 0;
-  }
+  <title>Constructor</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
 
-  header {
-    height: 32px;
-  }
+    header {
+      height: 32px;
+    }
 
-  footer {
-    display: none;
-  }
+    footer {
+      display: none;
+    }
 
-  main {
-    height: calc(100vh - 32px);
-    width: 100vw;
-    display: grid;
-  }
+    main {
+      height: calc(100vh - 32px);
+      width: 100vw;
+      display: grid;
+    }
 
-  .cell {
-    flex: 1;
-    border: 1px solid black;
+    .cell {
+      flex: 1;
+      border: 1px solid black;
+    }
 
-    &.selected {
+    .cell.selected {
       border-color: red;
     }
-  }
 
-  .level {
-    width: 32px;
-  }
-</style>
+    .level {
+      width: 32px;
+    }
+  </style>
+</head>
 
 <body>
   <header>
     <input
       onchange="changeMenu(this)"
       list="menuList"
-      name="menuInput"
       id="menuInput"
     >
     <datalist id="menuList">
@@ -65,352 +64,183 @@
     <input
       class="level"
       type="number"
-      name="level"
       id="level"
       value="1"
     />
   </header>
   <main
-    id='main'
-    style='grid-template-areas: "c1"'
+    id="main"
+    style="grid-template-areas: 'c1'"
   >
     <div
       class="cell"
       style="grid-area: c1;"
     ></div>
   </main>
-  <footer>
+  <footer></footer>
 
-  </footer>
-</body>
-<script>
-  function toggleMainClick(value) {
-    const actionName = value ? 'addEventListener' : 'removeEventListener'
-    main[actionName]('click', selectCell)
-  }
+  <script>
+    const main = document.getElementById('main');
+    const level = document.getElementById('level');
 
-  function getLevel() {
-    return +level.value
-  }
-
-  function getMainCells() {
-    return Array.from(main.children)
-  }
-
-  function doubleSubstring(str, substring) {
-    // Создаем регулярное выражение для поиска подстроки с учетом пробелов
-    const regex = new RegExp(`(${substring})(?!\\d)`, 'g');
-
-    // Заменяем каждое вхождение подстроки на удвоенное с пробелом
-    return str.replace(regex, '$1 $1');
-  }
-
-  toggleMainClick(true)
-
-  function selectCell(event) {
-    cell = event.target
-
-    if (!cell.classList.contains('cell')) return
-
-    cell.classList.toggle('selected')
-  }
-
-  function verticalSlice({
-    place,
-    cellId,
-    selectedId,
-    startSelectedCellIndex,
-    cellIndex,
-    prevString,
-    oldString,
-    endSelectedCellIndex,
-    addNewIds,
-  }) {
-    if (place === 'before' && compare(cellId, selectedId) && compare(startSelectedCellIndex, cellIndex)) {
-      addNewIds();
-
-      prevString += oldString
-    } else if (place === 'after' && compare(cellId, selectedId) && compare(endSelectedCellIndex, cellIndex)) {
-      prevString += oldString
-
-      addNewIds({ place });
-    } else {
-      prevString += oldString
+    function toggleMainClick(enable) {
+      const action = enable ? 'addEventListener' : 'removeEventListener';
+      main[action]('click', selectCell);
     }
-  }
-  
-  function horizontalSlice({
-    place,
-    cellId,
-    selectedId,
-    startSelectedCellIndex,
-    cellIndex,
-    prevString,
-    oldString,
-    endSelectedCellIndex,
-    addNewIds,
-  }) {
-    if (place === 'before' && compare(cellId, selectedId) && compare(startSelectedCellIndex, cellIndex)) {
-      addNewIds();
 
-      prevString += oldString
-    } else if (place === 'after' && compare(cellId, selectedId) && compare(endSelectedCellIndex, cellIndex)) {
-      prevString += oldString
-
-      addNewIds({ place });
-    } else {
-      prevString += oldString
+    function getLevel() {
+      return +level.value;
     }
-  }
 
-  function createCells({
-    direction,
-    selectedCell,
-    place = 'after'
-  }) {
-    const isVerticalDirection = direction === 'verticalSlice';
-    const isHorizontalDirection = direction === 'horizontalSlice';
+    function getMainCells() {
+      return Array.from(main.children);
+    }
 
-    selectedId = getCellId({ cellEl: selectedCell }).idString
+    function doubleSubstring(str, substring) {
+      const regex = new RegExp(`(${substring})(?!\\d)`, 'g');
+      return str.replace(regex, '$1 $1');
+    }
 
-    rows = isVerticalDirection ? getRows() : isHorizontalDirection ? getColumns() : [];
+    toggleMainClick(true);
 
-    let startSelectedCellIndex = null;
-    let endSelectedCellIndex = 0;
-    let isStarted = false;
+    function selectCell(event) {
+      const cell = event.target;
+      if (!cell.classList.contains('cell')) return;
+      cell.classList.toggle('selected');
+    }
 
-    rows.some(cellIds => {
-      cellIds.some((cellId, cellIndex) => {
-        const isSameId = compare(cellId, selectedId);
+    function createCells({ direction, selectedCell, place = 'after' }) {
+      const selectedId = getCellId(selectedCell).idString;
+      const rows = getRows();
+      let [startIdx, endIdx] = [null, 0];
+      let isStarted = false;
 
-        if (isSameId) {
-          if (startSelectedCellIndex === null) startSelectedCellIndex = cellIndex;
-
-          isStarted = true
-          endSelectedCellIndex = cellIndex;
-        }
-
-        return isStarted && !isSameId
-      })
-    })
-
-    fragment = new DocumentFragment()
-
-    newIds = getNewIds(getMainCells().map(cellEl => getCellId({ cellEl }).idNumber))
-
-    newIds.forEach(id =>
-      fragment.append(
-        createEl({
-          className: 'cell',
-          style: {
-            ['grid-area']: id,
+      rows.some(cellIds => {
+        return cellIds.some((cellId, cellIndex) => {
+          if (compare(cellId, selectedId)) {
+            if (startIdx === null) startIdx = cellIndex;
+            isStarted = true;
+            endIdx = cellIndex;
           }
-        })
-      )
-    )
+          return isStarted && !compare(cellId, selectedId);
+        });
+      });
 
-    newRows = rows.reduce((prevString, cellIds, rowIndex) => {
-      cellIds.forEach((cellId, cellIndex) => {
-        isFirstCellIndex = !cellIndex;
+      const fragment = document.createDocumentFragment();
+      const newIds = getNewIds(getMainCells().map(cellEl => getCellId(cellEl).idNumber));
 
-        const addNewIds = ({ place }) => {
-          const isPlaceAfter = place === 'after';
+      newIds.forEach(id => {
+        fragment.append(createEl({ className: 'cell', style: { 'grid-area': id } }));
+      });
 
-          newIds.forEach((newId, newCellIdIndex) => {
-            const isFirstNewCellIdsIndex = !newCellIdIndex;
+      let newRows = rows.reduce((prevString, cellIds, rowIndex) => {
+        cellIds.forEach((cellId, cellIndex) => {
+          const isFirstCell = cellIndex === 0;
+          const oldString = `${isFirstCell ? '' : ' '}${cellId}`;
 
-            const addIdCallback = (value, rangeIndex) => {
-              isFirstRangeIndex = !rangeIndex;
+          if (isFirstCell) prevString += rowIndex ? ' ' : '"';
 
-              prevString += `${!isPlaceAfter && isFirstRangeIndex && isFirstCellIndex && isFirstNewCellIdsIndex ? '' : ' '}${newId}`
+          const addNewIds = ({ place }) => {
+            newIds.forEach(newId => {
+              rangeArray({
+                from: startIdx, to: endIdx, handler: (value) => {
+                  prevString += `${place === 'after' ? ' ' : ''}${newId}`;
+                }
+              });
+            });
+          };
+
+          if (direction === 'verticalSlice') {
+            if (place === 'before' && compare(cellId, selectedId) && compare(startIdx, cellIndex)) {
+              addNewIds({ place });
+              prevString += oldString;
+            } else if (place === 'after' && compare(cellId, selectedId) && compare(endIdx, cellIndex)) {
+              prevString += oldString;
+              addNewIds({ place });
+            } else {
+              prevString += oldString;
             }
+          }
 
-            rangeArray({
-              from: startSelectedCellIndex,
-              to: endSelectedCellIndex,
-              handler: addIdCallback
-            })
-          })
-        }
+          if (cellIndex === cellIds.length - 1) prevString += '"';
+        });
+        return prevString;
+      }, '');
 
-        if (isFirstCellIndex) prevString += `${!!rowIndex ? ' ' : ''}"`;
+      getMainCells().forEach(element => {
+        const elId = getCellId(element).idString;
+        if (!compare(elId, selectedId)) newRows = doubleSubstring(newRows, elId);
+      });
 
-        const oldString = `${isFirstCellIndex ? '' : ' '}${cellId}`;
-
-        if (isVerticalDirection) {
-          verticalSlice({
-            place,
-            cellId,
-            selectedId,
-            startSelectedCellIndex,
-            cellIndex,
-            prevString,
-            oldString,
-            endSelectedCellIndex,
-            addNewIds,
-          })
-        } else if (isHorizontalDirection) {
-          horizontalSlice({
-            place,
-            cellId,
-            selectedId,
-            startSelectedCellIndex,
-            cellIndex,
-            prevString,
-            oldString,
-            endSelectedCellIndex,
-            addNewIds,
-          })
-        }
-
-        if (cellIndex === cellIds.length - 1) prevString += `"`
-      })
-
-      return prevString
-    }, '')
-
-    getMainCells().forEach(element => {
-      const elId = getCellId({ cellEl: element }).idString;
-
-      if (!compare(elId, selectedId)) newRows = doubleSubstring(newRows, elId)
-    })
-
-    setMainRows({ newRows })
-
-    selectedCell[place](fragment)
-  }
-
-  function getCellId({ cellEl }) {
-    idString = cellEl.style['grid-area']
-    return { idString, idNumber: Number(idString.slice(1)) }
-  }
-
-  function getMainRows() {
-    gridTemplateAreas = main.style['grid-template-areas']
-    splittedRows = gridTemplateAreas.replaceAll('" ', '"columnSpace').replaceAll('"', '').split("columnSpace")
-
-    return splittedRows
-  }
-
-  function setMainRows({ newRows }) {
-    main.style['grid-template-areas'] = newRows
-  }
-
-  function getRows() {
-    rows = getMainRows()
-
-    return splittedRows = rows.map(row => row.replaceAll(`"`, '').split(' '))
-  }
-  
-  function getColumns() {
-    rows = getRows();
-
-    return rows.map((rowIds, rowIndex) => rowIds.map((rowId, rowIdIndex) => rows[rowIdIndex][rowIndex]))
-  }
-
-  function getColumnsLength() {
-    return +columnsLengthEl.innerText
-  }
-
-  function getNewIds(items) {
-    newMax = Math.max(...items) + 1
-    sliceCount = +level.value - 1
-
-    return rangeArray({
-      from: newMax,
-      to: newMax + sliceCount,
-      before: 'c',
-    })
-  }
-
-  function changeMenu(menuEl) {
-    const { value } = menuEl
-
-    if (value === 'verticalSlice' || value === 'horizontalSlice') {
-      getSelectedCells().forEach(selectedCell => {
-        createCells({
-          direction: value,
-          selectedCell
-        })
-      })
-    } else if (value === 'unselectAll') {
-      getSelectedCells().forEach(selectedCell => {
-        selectedCell.classList.toggle('selected')
-      })
+      setMainRows({ newRows });
+      selectedCell[place](fragment);
     }
 
-    menuEl.value = ''
-  }
-
-  function getSelectedCells() {
-    const selects = document.querySelectorAll('.selected');
-    return Array.from(selects)
-  }
-
-  function createEl({
-    elName = 'div',
-    className = '',
-    value = null,
-    type = '',
-    innerHTML = '',
-    appendTo = '',
-    onclick = null,
-    onchange = null,
-    style = {},
-    datasets = [],
-    appendInnerHTML = '',
-  }) {
-    const el = document.createElement(elName)
-
-    if (className) el.className = className
-    if (type) el.type = type
-    if (value) el.value = value
-    if (style) {
-      Object.keys(style).forEach(field => {
-        el.style[field] = style[field]
-      })
-    }
-    if (innerHTML) el.innerHTML = innerHTML
-    if (onclick) el.onclick = onclick
-    if (onchange) el.onchange = onchange
-    if (appendInnerHTML) el.append(appendInnerHTML)
-    if (datasets.length) {
-      datasets.forEach(dataset => {
-        el.dataset[dataset.name] = dataset.value
-      })
+    function getCellId(cellEl) {
+      const idString = cellEl.style['grid-area'];
+      return { idString, idNumber: Number(idString.slice(1)) };
     }
 
-    if (appendTo) {
-      if (appendTo === 'body') {
-        document.body.append(el)
-      } else {
-        document.querySelector(appendTo).append(el)
+    function getMainRows() {
+      const gridTemplateAreas = main.style['grid-template-areas'];
+      return gridTemplateAreas.replaceAll('" ', '"columnSpace').replaceAll('"', '').split("columnSpace");
+    }
+
+    function setMainRows({ newRows }) {
+      main.style['grid-template-areas'] = newRows;
+    }
+
+    function getRows() {
+      return getMainRows().map(row => row.replaceAll('"', '').split(' '));
+    }
+
+    function getNewIds(items) {
+      const newMax = Math.max(...items) + 1;
+      const sliceCount = getLevel() - 1;
+      return rangeArray({ from: newMax, to: newMax + sliceCount, before: 'c' });
+    }
+
+    function changeMenu(menuEl) {
+      const { value } = menuEl;
+      const selectedCells = getSelectedCells();
+
+      if (value === 'verticalSlice' || value === 'horizontalSlice') {
+        selectedCells.forEach(selectedCell => createCells({ direction: value, selectedCell }));
+      } else if (value === 'unselectAll') {
+        selectedCells.forEach(selectedCell => selectedCell.classList.toggle('selected'));
       }
-    }
-    return el
-  }
 
-  function rangeArray({ from = 0, to = 0, before = '', after = '', handler }) {
-    const newArray = []
-
-    for (let index = from; index <= to; index++) {
-      let value = index
-
-      if (before) value = `${before}${value}`;
-      if (after) value = `${value}${after}`
-
-      handler?.(value, index)
-
-      newArray.push(value)
+      menuEl.value = '';
     }
 
-    return newArray
-  }
+    function getSelectedCells() {
+      return Array.from(document.querySelectorAll('.selected'));
+    }
 
-  function compare(id1, id2) {
-    return String(id1) === String(id2);
-  }
+    function createEl({ elName = 'div', className = '', type = '', innerHTML = '', style = {}, appendTo = '' }) {
+      const el = document.createElement(elName);
+      if (className) el.className = className;
+      if (type) el.type = type;
+      if (style) Object.assign(el.style, style);
+      if (innerHTML) el.innerHTML = innerHTML;
+      if (appendTo) document.querySelector(appendTo).append(el);
+      return el;
+    }
 
-</script>
+    function rangeArray({ from = 0, to = 0, before = '', handler }) {
+      const newArray = [];
+      for (let index = from; index <= to; index++) {
+        let value = `${before}${index}`;
+        handler?.(value, index);
+        newArray.push(value);
+      }
+      return newArray;
+    }
+
+    function compare(id1, id2) {
+      return String(id1) === String(id2);
+    }
+  </script>
+</body>
 
 </html>
