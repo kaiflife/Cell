@@ -74,6 +74,7 @@
   >
     <div
       class="cell"
+      data-cell-length="1"
       style="grid-area: c1;"
     ></div>
   </main>
@@ -92,6 +93,10 @@
       return +level.value;
     }
 
+    function getElementCellLength(element) {
+      return +element.dataset['cellLength']
+    }
+
     function getMainCells() {
       return Array.from(main.children);
     }
@@ -99,6 +104,21 @@
     function doubleSubstring(str, substring) {
       const regex = new RegExp(`(${substring})(?!\\d)`, 'g');
       return str.replace(regex, '$1 $1');
+    }
+
+    function replaceSubstring(str, substring, count) {
+      const currentSubStringRegex = new RegExp(`(${substring})(?!\\d)`, 'g');
+      const multiplySpacesRegex = /\s{2,}/g;
+
+      const slicedString = str
+        .replaceAll(currentSubStringRegex, ' ')
+        .replaceAll(multiplySpacesRegex, ` ${substring} `)
+        .replaceAll('  ', ' ')
+        .trim()
+
+      const newString = rangeArray({ from: 1, to: count }).map((_, index) => substring).join(' ');
+
+      return slicedString.replaceAll(currentSubStringRegex, newString);
     }
 
     toggleMainClick(true);
@@ -126,11 +146,18 @@
         });
       });
 
+      const currentSelectedCellRange = rangeArray({ from: startIdx, to: endIdx });
+      const newIdLength = currentSelectedCellRange.length;
+
       const fragment = document.createDocumentFragment();
       const newIds = getNewIds(getMainCells().map(cellEl => getCellId(cellEl).idNumber));
 
       newIds.forEach(id => {
-        fragment.append(createEl({ className: 'cell', style: { 'grid-area': id } }));
+        fragment.append(createEl({
+          className: 'cell',
+          datasets: [{ value: newIdLength, name: 'cellLength' }],
+          style: { 'grid-area': id }
+        }));
       });
 
       let newRows = rows.reduce((prevString, cellIds, rowIndex) => {
@@ -142,11 +169,7 @@
 
           const addNewIds = ({ place }) => {
             newIds.forEach(newId => {
-              rangeArray({
-                from: startIdx, to: endIdx, handler: (value) => {
-                  prevString += `${place === 'after' ? ' ' : ''}${newId}`;
-                }
-              });
+              currentSelectedCellRange.forEach(() => prevString += `${place === 'after' ? ' ' : ''}${newId}`)
             });
           };
 
@@ -169,7 +192,14 @@
 
       getMainCells().forEach(element => {
         const elId = getCellId(element).idString;
-        if (!compare(elId, selectedId)) newRows = doubleSubstring(newRows, elId);
+        if (!compare(elId, selectedId)) {
+          const singleSelectedCellCount = 1;
+          const newCellLength = (getLevel() + singleSelectedCellCount) * getElementCellLength(element);
+
+          element.dataset['cellLength'] = newCellLength;
+
+          newRows = replaceSubstring(newRows, elId, newCellLength);
+        }
       });
 
       setMainRows({ newRows });
@@ -192,6 +222,12 @@
 
     function getRows() {
       return getMainRows().map(row => row.replaceAll('"', '').split(' '));
+    }
+    
+    function getColumns() {
+      const rows = getRows();
+
+      return rows.map((cellIds, rowIndex) => cellIds.map((cellId, cellIndex) => rows[cellIndex][rowIndex]));
     }
 
     function getNewIds(items) {
@@ -217,9 +253,10 @@
       return Array.from(document.querySelectorAll('.selected'));
     }
 
-    function createEl({ elName = 'div', className = '', type = '', innerHTML = '', style = {}, appendTo = '' }) {
+    function createEl({ elName = 'div', className = '', type = '', datasets, innerHTML = '', style = {}, appendTo = '' }) {
       const el = document.createElement(elName);
       if (className) el.className = className;
+      if (datasets) datasets.forEach(({ value, name }) => el.dataset[name] = value)
       if (type) el.type = type;
       if (style) Object.assign(el.style, style);
       if (innerHTML) el.innerHTML = innerHTML;
