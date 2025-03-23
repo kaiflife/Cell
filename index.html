@@ -129,9 +129,12 @@
       cell.classList.toggle('selected');
     }
 
-    function createCells({ direction, selectedCell, place = 'after' }) {
+    function createCells({ direction, selectedCell, place = 'after', selectedCellIndex, selectedCells }) {
+      const isLastSelectedCellIndex = selectedCellIndex === selectedCells.length - 1;
+      const isHorizontal = direction === 'horizontalSlice';
       const selectedId = getCellId(selectedCell).idString;
-      const rows = getRows();
+      const mainRows = getRows();
+      const rows = isHorizontal ? getRevertedColumns(mainRows) : mainRows;
       let [startIdx, endIdx] = [null, 0];
       let isStarted = false;
 
@@ -139,6 +142,7 @@
         return cellIds.some((cellId, cellIndex) => {
           if (compare(cellId, selectedId)) {
             if (startIdx === null) startIdx = cellIndex;
+
             isStarted = true;
             endIdx = cellIndex;
           }
@@ -160,7 +164,7 @@
         }));
       });
 
-      let newRows = rows.reduce((prevString, cellIds, rowIndex) => {
+      let stringRows = rows.reduce((prevString, cellIds, rowIndex) => {
         cellIds.forEach((cellId, cellIndex) => {
           const isFirstCell = cellIndex === 0;
           const oldString = `${isFirstCell ? '' : ' '}${cellId}`;
@@ -173,16 +177,14 @@
             });
           };
 
-          if (direction === 'verticalSlice') {
-            if (place === 'before' && compare(cellId, selectedId) && compare(startIdx, cellIndex)) {
-              addNewIds({ place });
-              prevString += oldString;
-            } else if (place === 'after' && compare(cellId, selectedId) && compare(endIdx, cellIndex)) {
-              prevString += oldString;
-              addNewIds({ place });
-            } else {
-              prevString += oldString;
-            }
+          if (place === 'before' && compare(cellId, selectedId) && compare(startIdx, cellIndex)) {
+            addNewIds({ place });
+            prevString += oldString;
+          } else if (place === 'after' && compare(cellId, selectedId) && compare(endIdx, cellIndex)) {
+            prevString += oldString;
+            addNewIds({ place });
+          } else {
+            prevString += oldString;
           }
 
           if (cellIndex === cellIds.length - 1) prevString += '"';
@@ -198,11 +200,15 @@
 
           element.dataset['cellLength'] = newCellLength;
 
-          newRows = replaceSubstring(newRows, elId, newCellLength);
+          stringRows = replaceSubstring(stringRows, elId, newCellLength);
         }
       });
 
-      setMainRows({ newRows });
+      console.log('stringRows', stringRows);
+
+      if (isHorizontal && isLastSelectedCellIndex) stringRows = getRevertedColumns(formatMainRows(stringRows))
+
+      setMainRows({ stringRows });
       selectedCell[place](fragment);
     }
 
@@ -211,23 +217,29 @@
       return { idString, idNumber: Number(idString.slice(1)) };
     }
 
-    function getMainRows() {
-      const gridTemplateAreas = main.style['grid-template-areas'];
-      return gridTemplateAreas.replaceAll('" ', '"columnSpace').replaceAll('"', '').split("columnSpace");
+    function formatMainRows(stringRows) {
+      return stringRows.replaceAll('" ', '"columnSpace').replaceAll('"', '').split("columnSpace");
     }
 
-    function setMainRows({ newRows }) {
-      main.style['grid-template-areas'] = newRows;
+    function getMainRows() {
+      const mainRowsTemplate = main.style['grid-template-areas'];
+      return formatMainRows(mainRowsTemplate);
+    }
+
+    function setMainRows({ stringRows }) {
+      main.style['grid-template-areas'] = stringRows;
     }
 
     function getRows() {
       return getMainRows().map(row => row.replaceAll('"', '').split(' '));
     }
-    
-    function getColumns() {
-      const rows = getRows();
 
-      return rows.map((cellIds, rowIndex) => cellIds.map((cellId, cellIndex) => rows[cellIndex][rowIndex]));
+    function getRevertedColumns(rows) {
+      return rows.map((cellIds, rowIndex) => {
+        if (Array.isArray(cellIds)) return cellIds.map((cellId, cellIndex) => rows[cellIndex][rowIndex]);
+
+        return cellIds;
+      });
     }
 
     function getNewIds(items) {
@@ -241,7 +253,7 @@
       const selectedCells = getSelectedCells();
 
       if (value === 'verticalSlice' || value === 'horizontalSlice') {
-        selectedCells.forEach(selectedCell => createCells({ direction: value, selectedCell }));
+        selectedCells.forEach((selectedCell, selectedCellIndex) => createCells({ direction: value, selectedCell, selectedCellIndex, selectedCells }));
       } else if (value === 'unselectAll') {
         selectedCells.forEach(selectedCell => selectedCell.classList.toggle('selected'));
       }
