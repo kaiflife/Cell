@@ -18,22 +18,18 @@
       padding: 0;
     }
 
-    header {
-      height: 32px;
-    }
-
     footer {
-      display: none;
+      height: 32px;
     }
 
     main {
       height: calc(100vh - 32px);
       width: 100vw;
-      display: flex;
+      position: relative;
     }
 
     .cell {
-      flex: 1;
+      position: fixed;
       border: 1px solid black;
 
       &.selected {
@@ -48,7 +44,8 @@
 </head>
 
 <body>
-  <header>
+  <main id="main"></main>
+  <footer>
     <input
       onchange="changeMenu(this)"
       list="menuList"
@@ -67,20 +64,24 @@
       id="level"
       value="1"
     />
-  </header>
-  <main id="main">
-    <div
-      data-id='1'
-      data-width="1"
-      data-height="1"
-      class="cell"
-    ></div>
-  </main>
+  </footer>
 
   <script>
     const main = document.getElementById('main');
     const level = document.getElementById('level');
     maxId = 1
+    
+    function getPx(value){
+        return `${parseInt(value)}px`
+    }
+    
+    main.append(createCell({
+        id: maxId,
+        width: main.clientWidth - 2,
+        height: main.clientHeight - 2,
+        left: 0,
+        top: 0
+    }))
 
     function toggleMainClick(enable) {
       const action = enable ? 'addEventListener' : 'removeEventListener';
@@ -90,13 +91,35 @@
     function getLevel() {
       return +level.value;
     }
-
-    function getCellLength(element, isHeight = false) {
-      return +element[`client${isHeight ? 'Height' : 'Width'}`]
+    
+    function createCell({
+        zIndex,
+        id,
+        width,
+        height,
+        top,
+        left,
+    }){
+        return createEl({
+            className: 'cell',
+            datasets: [{ value: id, name: 'id' }],
+            style: {
+                top: getPx(top),
+                left: getPx(left),
+                height: getPx(height),
+                width: getPx(width),
+                ['z-index']: zIndex ?? id
+            }
+          })
     }
 
-    function getRows() {
-      return Array.from(main.children);
+    function getCellInfo(element) {
+      return {
+          top: parseInt(element.style.top),
+          left: parseInt(element.style.left),
+          width: parseInt(element.style.width),
+          height: parseInt(element.style.height),
+      }
     }
 
     function getCells() {
@@ -113,29 +136,36 @@
       }
     }
 
-    function splitCell({ direction, selectedCell, place = 'after', selectedCells }) {
+    function splitCell({ direction, selectedCell, place = 'before', selectedCells }) {
       const isHorizontal = direction === 'horizontalSlice';
       const isVertical = direction === 'verticalSlice'
-      const mainRows = getRows();
 
       const fragment = document.createDocumentFragment();
       const newIds = getNewIds();
+      
+      const { width,height,top,left } = getCellInfo(selectedCell)
+        
+      calcWidth = isVertical ? width / (newIds.length+1) : width
+      calcHeight = isHorizontal ? height / (newIds.length+1) : height
 
-      if (isVertical) {
-        width = Math.round(getCellLength(selectedCell) / (newIds.length + 1))
+      newIds.forEach((id, index) => {
+          calcLeft = isVertical ? left + index * calcWidth : left
+          calcTop = isHorizontal ? top + index * calcHeight : top
+          fragment.append(createCell({
+              id,
+              width: calcWidth,
+              height: calcHeight,
+              top: calcTop,
+              left: calcLeft
+         }));
+      });
 
-        newIds.forEach(id => {
-          fragment.append(createEl({
-            className: 'cell',
-            datasets: [{ value: id, name: 'id' }],
-            style: { width }
-          }));
-        });
+      selectedCell.style.width = calcWidth
+      selectedCell.style.height = calcHeight
+      selectedCell.style.left = isVertical ? left + calcWidth * newIds.length : left
+      selectedCell.style.top = isHorizontal ? top + calcHeight * newIds.length : top
 
-        selectedCell.style.width = width
-
-        selectedCell[place](fragment);
-      }
+      selectedCell[place](fragment);
     }
 
     function getCellId(cellEl) {
@@ -173,7 +203,7 @@
       if (datasets) datasets.forEach(({ value, name }) => el.dataset[name] = value)
       if (type) el.type = type;
       if (style) Object.keys(style).forEach(styleKey => {
-        el.style = style[styleKey]
+        el.style[styleKey] = style[styleKey]
       })
       if (innerHTML) el.innerHTML = innerHTML;
       if (appendTo) document.querySelector(appendTo).append(el);
