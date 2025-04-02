@@ -29,16 +29,16 @@
     main {
       height: calc(100vh - 32px);
       width: 100vw;
-      display: grid;
+      display: flex;
     }
 
     .cell {
       flex: 1;
       border: 1px solid black;
-    }
 
-    .cell.selected {
-      border-color: red;
+      &.selected {
+        border-color: red;
+      }
     }
 
     .level {
@@ -68,21 +68,19 @@
       value="1"
     />
   </header>
-  <main
-    id="main"
-    style='grid-template-areas: "c1"'
-  >
+  <main id="main">
     <div
+      data-id='1'
+      data-width="1"
+      data-height="1"
       class="cell"
-      data-cell-length="1"
-      style="grid-area: c1;"
     ></div>
   </main>
-  <footer></footer>
 
   <script>
     const main = document.getElementById('main');
     const level = document.getElementById('level');
+    maxId = 1
 
     function toggleMainClick(enable) {
       const action = enable ? 'addEventListener' : 'removeEventListener';
@@ -93,173 +91,63 @@
       return +level.value;
     }
 
-    function getElementCellLength(element) {
-      return +element.dataset['cellLength']
+    function getCellLength(element, isHeight = false) {
+      return +element[`client${isHeight ? 'Height' : 'Width'}`]
     }
 
-    function getMainCells() {
+    function getRows() {
       return Array.from(main.children);
     }
 
-    function doubleSubstring(str, substring) {
-      const regex = new RegExp(`(${substring})(?!\\d)`, 'g');
-      return str.replace(regex, '$1 $1');
-    }
-
-    function replaceSubstring(str, substring, count) {
-      const currentSubStringRegex = new RegExp(`(${substring})(?!\\d)`, 'g');
-      const multiplySpacesRegex = /\s{2,}/g;
-
-      const slicedString = str
-        .replaceAll(currentSubStringRegex, ' ')
-        .replaceAll(multiplySpacesRegex, ` ${substring} `)
-        .replaceAll('  ', ' ')
-        .replaceAll(`${substring} "`, `${substring}"`)
-        .trim()
-        
-      console.log(slicedString, 'slicedString')
-
-      const newString = rangeArray({ from: 1, to: count }).map((_, index) => substring).join(' ');
-
-      return slicedString.replaceAll(currentSubStringRegex, newString);
+    function getCells() {
+      return main.querySelectorAll('.cell')
     }
 
     toggleMainClick(true);
 
     function selectCell(event) {
-      const cell = event.target;
-      if (!cell.classList.contains('cell')) return;
-      cell.classList.toggle('selected');
+      const el = event.target;
+
+      if (el.classList.contains('cell')) {
+        el.classList.toggle('selected');
+      }
     }
 
-    function createCells({ direction, selectedCell, place = 'after', selectedCellIndex, selectedCells }) {
-      const isLastSelectedCellIndex = selectedCellIndex === selectedCells.length - 1;
+    function splitCell({ direction, selectedCell, place = 'after', selectedCells }) {
       const isHorizontal = direction === 'horizontalSlice';
-      const selectedId = getCellId(selectedCell).idString;
+      const isVertical = direction === 'verticalSlice'
       const mainRows = getRows();
-      const rows = isHorizontal ? getRevertedColumns(mainRows) : mainRows;
-      let [startIdx, endIdx] = [null, 0];
-      let isStarted = false;
-
-      rows.some(cellIds => {
-        return cellIds.some((cellId, cellIndex) => {
-          if (compare(cellId, selectedId)) {
-            if (startIdx === null) startIdx = cellIndex;
-
-            isStarted = true;
-            endIdx = cellIndex;
-          }
-          return isStarted && !compare(cellId, selectedId);
-        });
-      });
-
-      const currentSelectedCellRange = rangeArray({ from: startIdx, to: endIdx });
-      const newIdLength = currentSelectedCellRange.length;
 
       const fragment = document.createDocumentFragment();
-      const newIds = getNewIds(getMainCells().map(cellEl => getCellId(cellEl).idNumber));
+      const newIds = getNewIds();
 
-      newIds.forEach(id => {
-        fragment.append(createEl({
-          className: 'cell',
-          datasets: [{ value: newIdLength, name: 'cellLength' }],
-          style: { 'grid-area': id }
-        }));
-      });
+      if (isVertical) {
+        width = Math.round(getCellLength(selectedCell) / (newIds.length + 1))
 
-      let stringRows = rows.reduce((prevString, cellIds, rowIndex) => {
-        cellIds.forEach((cellId, cellIndex) => {
-          const isFirstCell = cellIndex === 0;
-          const oldString = `${isFirstCell ? '' : ' '}${cellId}`;
-
-          if (isFirstCell) prevString += rowIndex ? ' ' : '"';
-
-          const addNewIds = ({ place }) => {
-            newIds.forEach(newId => {
-              currentSelectedCellRange.forEach(() => prevString += `${place === 'after' ? ' ' : ''}${newId}`)
-            });
-          };
-
-          if (place === 'before' && compare(cellId, selectedId) && compare(startIdx, cellIndex)) {
-            addNewIds({ place });
-            prevString += oldString;
-          } else if (place === 'after' && compare(cellId, selectedId) && compare(endIdx, cellIndex)) {
-            prevString += oldString;
-            addNewIds({ place });
-          } else {
-            prevString += oldString;
-          }
-
-          if (cellIndex === cellIds.length - 1) prevString += '"';
+        newIds.forEach(id => {
+          fragment.append(createEl({
+            className: 'cell',
+            datasets: [{ value: id, name: 'id' }],
+            style: { width }
+          }));
         });
-        return prevString;
-      }, '');
-      
-      console.log('stringRows 1', stringRows)
 
-      getMainCells().forEach(element => {
-        const elId = getCellId(element).idString;
-        if (!compare(elId, selectedId)) {
-          const singleSelectedCellCount = 1;
-          const newCellLength = (getLevel() + singleSelectedCellCount) * getElementCellLength(element);
+        selectedCell.style.width = width
 
-          element.dataset['cellLength'] = newCellLength;
-
-          stringRows = replaceSubstring(stringRows, elId, newCellLength);
-        }
-      });
-      
-      console.log('stringRows 2', stringRows)
-
-      if (isHorizontal && isLastSelectedCellIndex) {
-          formattedRows = formatMainRows(stringRows)
-          stringRows = getRevertedColumns(getRows(formattedRows)).map(cellIds => `"${cellIds.join(' ')}"`).join(' ')
+        selectedCell[place](fragment);
       }
-      
-      console.log('stringRows', stringRows)
-
-      setMainRows({ stringRows });
-      selectedCell[place](fragment);
     }
 
     function getCellId(cellEl) {
-      const idString = cellEl.style['grid-area'];
-      return { idString, idNumber: Number(idString.slice(1)) };
+      const idString = +cellEl.dataset.id;
     }
 
-    function formatMainRows(stringRows) {
-      return stringRows.replaceAll('" "', '"columnSpace"').replaceAll('"', '').split("columnSpace");
-    }
-
-    function getMainRows() {
-      const mainRowsTemplate = main.style['grid-template-areas'];
-      return formatMainRows(mainRowsTemplate);
-    }
-
-    function setMainRows({ stringRows }) {
-      main.style['grid-template-areas'] = stringRows;
-    }
-
-    function getRows(rows = getMainRows()) {
-      return rows.map(row => row.replaceAll('"', '').split(' '));
-    }
-
-    function getRevertedColumns(rows) {
-      return rows[0].map((cellId, cellIndex) => {
-        hasNoColumns = !rows[1]
-        isSingle = rows[0].length === 1
-        
-        // if(!isSingle && hasNoColumns) return `"${cellId}"`
-        if(hasNoColumns) return [cellId]
-        
-        return rows.map((cellIds, rowIndex) => rows[rowIndex][cellIndex]);
-      });
-    }
-
-    function getNewIds(items) {
-      const newMax = Math.max(...items) + 1;
+    function getNewIds() {
+      const from = maxId + 1;
       const sliceCount = getLevel() - 1;
-      return rangeArray({ from: newMax, to: newMax + sliceCount, before: 'c' });
+      newMax = from + sliceCount
+      maxId = newMax
+      return rangeArray({ from, to: newMax });
     }
 
     function changeMenu(menuEl) {
@@ -267,7 +155,7 @@
       const selectedCells = getSelectedCells();
 
       if (value === 'verticalSlice' || value === 'horizontalSlice') {
-        selectedCells.forEach((selectedCell, selectedCellIndex) => createCells({ direction: value, selectedCell, selectedCellIndex, selectedCells }));
+        selectedCells.forEach((selectedCell) => splitCell({ direction: value, selectedCell, selectedCells }));
       } else if (value === 'unselectAll') {
         selectedCells.forEach(selectedCell => selectedCell.classList.toggle('selected'));
       }
@@ -284,7 +172,9 @@
       if (className) el.className = className;
       if (datasets) datasets.forEach(({ value, name }) => el.dataset[name] = value)
       if (type) el.type = type;
-      if (style) Object.assign(el.style, style);
+      if (style) Object.keys(style).forEach(styleKey => {
+        el.style = style[styleKey]
+      })
       if (innerHTML) el.innerHTML = innerHTML;
       if (appendTo) document.querySelector(appendTo).append(el);
       return el;
@@ -302,6 +192,12 @@
 
     function compare(id1, id2) {
       return String(id1) === String(id2);
+    }
+
+    function log() {
+      for (var i = 0; i < arguments.length; i++) {
+        console.log(arguments[i])
+      }
     }
   </script>
 </body>
