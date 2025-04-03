@@ -54,6 +54,7 @@
     <datalist id="menuList">
       <option value="verticalSlice">
       <option value="horizontalSlice">
+      <option value="join">
       <option value="undo">
       <option value="redo">
       <option value="unselectAll">
@@ -114,11 +115,17 @@
     }
 
     function getCellInfo(element) {
-      return {
+      info = {
           top: parseInt(element.style.top),
           left: parseInt(element.style.left),
           width: parseInt(element.style.width),
           height: parseInt(element.style.height),
+      }
+      
+      return {
+          ...info,
+          bottom: info.top + info.height,
+          right: info.left + info.width
       }
     }
 
@@ -188,6 +195,29 @@
         selectedCells.forEach((selectedCell) => splitCell({ direction: value, selectedCell, selectedCells }));
       } else if (value === 'unselectAll') {
         selectedCells.forEach(selectedCell => selectedCell.classList.toggle('selected'));
+      } else if (value === 'join') {
+          newLeft = null
+          newTop = null
+          newBottom = 0
+          newRight = 0
+          selectedCells.forEach(selectedCell => {
+              { width, height, top, left, right, bottom } = getCellInfo(selectedCell)
+              
+              if(newLeft > left || newLeft === null) newLeft = left
+              if(newRight < right) newRight = right
+              if(newTop > top || newTop === null) newTop = top
+              if(newBottom < bottom) newBottom = bottom
+          })
+          newWidth = newRight - newLeft
+          newHeight = newBottom - newTop
+          
+          main.append(createCell({
+              id: selectedCells[0].dataset.id,
+              left: newLeft,
+              top: newTop,
+              width: newWidth,
+              height: newHeight
+          }))
       }
 
       menuEl.value = '';
