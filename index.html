@@ -55,8 +55,7 @@
       <option value="verticalSlice">
       <option value="horizontalSlice">
       <option value="join">
-      <option value="undo">
-      <option value="redo">
+      <option value="edit">
       <option value="unselectAll">
     </datalist>
     <input
@@ -188,18 +187,15 @@
       maxId = newMax
       return rangeArray({ from, to: newMax });
     }
-
-    function changeMenu(menuEl) {
-      menuEl.blur()
-      const { value } = menuEl;
-      const selectedCells = getSelectedCells();
-
-      if (value === 'verticalSlice' || value === 'horizontalSlice') {
-        selectedCells.forEach((selectedCell) => splitCell({ direction: value, selectedCell, selectedCells }));
-      } else if (value === 'unselectAll') {
-        selectedCells.forEach(selectedCell => selectedCell.classList.toggle('selected'));
-      } else if (value === 'join') {
-          newLeft = null
+    
+    function editCell(selectedCells) {
+        cell = selectedCells[0]
+        cell.contentEditable = cell.contentEditable === 'true' ? 'false' : 'true'
+        cell.focus()
+    }
+    
+    function joinCells(selectedCells) {
+        newLeft = null
           newTop = null
           newBottom = 0
           newRight = 0
@@ -246,6 +242,21 @@
               width: newWidth,
               height: newHeight,
           }))
+    }
+
+    function changeMenu(menuEl) {
+      menuEl.blur()
+      const { value } = menuEl;
+      const selectedCells = getSelectedCells();
+
+      if (value === 'verticalSlice' || value === 'horizontalSlice') {
+        selectedCells.forEach((selectedCell) => splitCell({ direction: value, selectedCell, selectedCells }));
+      } else if (value === 'unselectAll') {
+        selectedCells.forEach(selectedCell => selectedCell.classList.toggle('selected'));
+      } else if (value === 'join') {
+        joinCells(selectedCells)
+      } else if(value === 'edit') {
+        editCell(selectedCells)
       }
 
       menuEl.value = '';
