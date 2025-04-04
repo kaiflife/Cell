@@ -70,6 +70,7 @@
   <script>
     const main = document.getElementById('main');
     const level = document.getElementById('level');
+    maxDiff = 1
     maxId = 1
     
     function getPx(value){
@@ -125,7 +126,8 @@
       return {
           ...info,
           bottom: info.top + info.height,
-          right: info.left + info.width
+          right: info.left + info.width,
+          id: +element.dataset.id
       }
     }
 
@@ -188,6 +190,7 @@
     }
 
     function changeMenu(menuEl) {
+      menuEl.blur()
       const { value } = menuEl;
       const selectedCells = getSelectedCells();
 
@@ -200,10 +203,20 @@
           newTop = null
           newBottom = 0
           newRight = 0
+          newId = 0
+          leftEl = null
+          rightEl = null
+          
           selectedCells.forEach(selectedCell => {
-              { width, height, top, left, right, bottom } = getCellInfo(selectedCell)
+              const { id, width, height, top, left, right, bottom } = getCellInfo(selectedCell)
               
-              if(newLeft > left || newLeft === null) newLeft = left
+              if(newId < id) {
+                  newId = id
+              }
+              if(newLeft > left || newLeft === null) {
+                  newLeft = left
+                  el = selectedCell
+              }
               if(newRight < right) newRight = right
               if(newTop > top || newTop === null) newTop = top
               if(newBottom < bottom) newBottom = bottom
@@ -211,12 +224,27 @@
           newWidth = newRight - newLeft
           newHeight = newBottom - newTop
           
+          getCells().forEach(cell => {
+              const { left, right, top, bottom, id } = getCellInfo(cell)
+              
+              isInLeft = newLeft - maxDiff < left
+              isInRight = newRight + maxDiff > right
+              isInTop = newTop - maxDiff < top
+              isInBottom = newBottom + maxDiff > bottom
+              
+              if(isInBottom && isInTop && isInRight && isInLeft) {
+                  if (newId > id) newId = id
+                  
+                  cell.remove()
+              }
+          })
+          
           main.append(createCell({
-              id: selectedCells[0].dataset.id,
+              id: newId,
               left: newLeft,
               top: newTop,
               width: newWidth,
-              height: newHeight
+              height: newHeight,
           }))
       }
 
