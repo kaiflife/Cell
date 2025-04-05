@@ -27,14 +27,19 @@
       width: 100vw;
       position: relative;
     }
+    
+    .editMode {
+        .cell{
+            border: 1px solid black;
+
+            &.selected {
+              border-color: red;
+            }
+        }
+    }
 
     .cell {
       position: fixed;
-      border: 1px solid black;
-
-      &.selected {
-        border-color: red;
-      }
     }
 
     .level {
@@ -72,10 +77,7 @@
     maxDiff = 1
     maxId = 1
     
-    function getPx(value){
-        return `${parseInt(value)}px`
-    }
-    
+    toggleMainClick(true);
     main.append(createCell({
         id: maxId,
         width: main.clientWidth - 2,
@@ -83,6 +85,15 @@
         left: 0,
         top: 0
     }))
+    toggleEditMode()
+    
+    function getPx(value){
+        return `${parseInt(value)}px`
+    }
+    
+    function toggleEditMode(){
+        document.body.classList.toggle('editMode')
+    }
 
     function toggleMainClick(enable) {
       const action = enable ? 'addEventListener' : 'removeEventListener';
@@ -133,8 +144,6 @@
     function getCells() {
       return main.querySelectorAll('.cell')
     }
-
-    toggleMainClick(true);
 
     function selectCell(event) {
       const el = event.target;
@@ -257,6 +266,8 @@
         joinCells(selectedCells)
       } else if(value === 'edit') {
         editCell(selectedCells)
+      } else if(value === 'editMode'){
+          toggleEditMode()
       }
 
       menuEl.value = '';
