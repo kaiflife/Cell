@@ -17,6 +17,40 @@
       margin: 0;
       padding: 0;
     }
+    
+    .editModal {
+        display: none;
+        position: fixed;
+        flex-direction: column;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        
+        &.show {
+            display: flex;
+        }
+        
+        .header {
+            display: flex;
+            width: 100vw;
+            height: 32px;
+            overflow-x: auto;
+            
+            div {
+                color: red;
+                &::before {
+                    content: '/';
+                }
+            }
+        }
+        
+        .main {
+            display: flex;
+            height: calc(100vh - 32px);
+            overflow-y: auto;
+        }
+    }
 
     footer {
       height: 32px;
@@ -49,6 +83,14 @@
 </head>
 
 <body>
+    <div id="editModal" class="editModal">
+        <div class="header">
+            <div>main</div>
+        </div>
+        <div class="main">
+            
+        </div>
+    </div>
   <main id="main"></main>
   <footer>
     <input
@@ -69,6 +111,7 @@
       id="level"
       value="1"
     />
+    <button onclick="toggleEditModal()">Menu</button>
   </footer>
 
   <script>
@@ -76,6 +119,7 @@
     const level = document.getElementById('level');
     maxDiff = 1
     maxId = 1
+    
     
     toggleMainClick(true);
     main.append(createCell({
@@ -102,6 +146,11 @@
 
     function getLevel() {
       return +level.value;
+    }
+    
+    function toggleEditModal(){
+        editModal.classList.toggle('show')
+        editModal.style.zIndex = maxId + 1
     }
     
     function createCell({
@@ -177,10 +226,10 @@
          }));
       });
 
-      selectedCell.style.width = calcWidth
-      selectedCell.style.height = calcHeight
-      selectedCell.style.left = isVertical ? left + calcWidth * newIds.length : left
-      selectedCell.style.top = isHorizontal ? top + calcHeight * newIds.length : top
+      selectedCell.style.width = getPx(calcWidth)
+      selectedCell.style.height = getPx(calcHeight)
+      selectedCell.style.left = getPx(isVertical ? left + calcWidth * newIds.length + 1 : left)
+      selectedCell.style.top = getPx(isHorizontal ? top + calcHeight * newIds.length + 1 : top)
 
       selectedCell[place](fragment);
     }
