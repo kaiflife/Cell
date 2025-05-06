@@ -52,7 +52,7 @@
         }
     }
 
-    footer {
+    header {
       height: 32px;
     }
 
@@ -132,7 +132,7 @@
     toggleEditMode()
     
     function getPx(value){
-        return `${parseInt(value)}px`
+        return `${parseFloat(value)}px`
     }
     
     function toggleEditMode(){
@@ -153,6 +153,33 @@
         editModal.style.zIndex = maxId + 1
     }
     
+    function preciseMath(a, b, operation, precision = 10) {
+        // Проверка на деление на ноль
+        if (operation === '/' && b === 0) {
+            throw new Error('Деление на ноль');
+        }
+    
+        let result;
+        switch(operation) {
+            case '+':
+                result = a + b;
+                break;
+            case '-':
+                result = a - b;
+                break;
+            case '*':
+                result = a * b;
+                break;
+            case '/':
+                result = a / b;
+                break;
+        }
+
+        // Округляем результат
+        const factor = Math.pow(10, precision);
+        return Math.round(result * factor) / factor;
+    }
+   
     function createCell({
         zIndex,
         id,
@@ -176,16 +203,16 @@
 
     function getCellInfo(element) {
       info = {
-          top: parseInt(element.style.top),
-          left: parseInt(element.style.left),
-          width: parseInt(element.style.width),
-          height: parseInt(element.style.height),
+          top: parseFloat(element.style.top),
+          left: parseFloat(element.style.left),
+          width: parseFloat(element.style.width),
+          height: parseFloat(element.style.height),
       }
       
       return {
           ...info,
-          bottom: info.top + info.height,
-          right: info.left + info.width,
+          bottom: preciseMath(info.top, info.height, '+'),
+          right: preciseMath(info.left, info.width, '+'),
           id: +element.dataset.id
       }
     }
@@ -211,12 +238,12 @@
       
       const { width,height,top,left } = getCellInfo(selectedCell)
         
-      calcWidth = isVertical ? width / (newIds.length+1) : width
-      calcHeight = isHorizontal ? height / (newIds.length+1) : height
+      calcWidth = isVertical ? preciseMath(width, newIds.length+1, '/') : width
+      calcHeight = isHorizontal ? preciseMath(height, newIds.length+1, '/') : height
 
       newIds.forEach((id, index) => {
-          calcLeft = isVertical ? left + index * calcWidth : left
-          calcTop = isHorizontal ? top + index * calcHeight : top
+          calcLeft = isVertical ? preciseMath(preciseMath(index,calcWidth,'*'),left, '+') : left
+          calcTop = isHorizontal ? preciseMath(preciseMath(calcHeight,index,'*'),top, '+') : top
           fragment.append(createCell({
               id,
               width: calcWidth,
@@ -228,8 +255,8 @@
 
       selectedCell.style.width = getPx(calcWidth)
       selectedCell.style.height = getPx(calcHeight)
-      selectedCell.style.left = getPx(isVertical ? left + calcWidth * newIds.length + 1 : left)
-      selectedCell.style.top = getPx(isHorizontal ? top + calcHeight * newIds.length + 1 : top)
+      selectedCell.style.left = getPx(isVertical ? preciseMath(preciseMath(preciseMath(calcWidth, newIds.length,'*'),left, '+'), 1, '+') : left)
+      selectedCell.style.top = getPx(isHorizontal ? preciseMath(preciseMath(preciseMath(calcHeight, newIds.length,'*'), top, '+'),1,'+') : top)
 
       selectedCell[place](fragment);
     }
@@ -239,8 +266,8 @@
     }
 
     function getNewIds() {
-      const from = maxId + 1;
-      const sliceCount = getLevel() - 1;
+      const from = maxId + maxDiff;
+      const sliceCount = getLevel() - maxDiff;
       newMax = from + sliceCount
       maxId = newMax
       return rangeArray({ from, to: newMax });
