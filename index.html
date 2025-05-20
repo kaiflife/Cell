@@ -1,315 +1,274 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="description" content="" />
+		<title>Constructor</title>
+		<style>
+			body {
+				margin: 0;
+				padding: 0;
+			}
 
-<head>
-  <meta charset="utf-8">
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-  <meta
-    name="description"
-    content=""
-  >
-  <title>Constructor</title>
-  <style>
-    body {
-      margin: 0;
-      padding: 0;
-    }
+			.menuModal {
+				display: none;
+				position: fixed;
+				flex-direction: column;
+				top: 0;
+				left: 0;
+				width: 100vw;
+				height: 100vh;
 
-    footer {
-      height: 32px;
-    }
+				&.show {
+					display: flex;
+				}
 
-    main {
-      height: calc(100vh - 32px);
-      width: 100vw;
-      position: relative;
-    }
-    
-    .editMode {
-        .cell{
-            border: 1px solid black;
+				.header {
+					display: flex;
+					width: 100vw;
+					height: 32px;
+					overflow-x: auto;
 
-            &.selected {
-              border-color: red;
-            }
-        }
-    }
+					div {
+						color: red;
 
-    .cell {
-      position: fixed;
-    }
+						&::before {
+							content: "/";
+						}
+					}
+				}
 
-    .level {
-      width: 32px;
-    }
-  </style>
-</head>
+				.main {
+					display: flex;
+					height: calc(100vh - 32px);
+					overflow-y: auto;
+				}
+			}
 
-<body>
-  <main id="main"></main>
-  <footer>
-    <input
-      onchange="changeMenu(this)"
-      list="menuList"
-      id="menuInput"
-    >
-    <datalist id="menuList">
-      <option value="verticalSlice">
-      <option value="horizontalSlice">
-      <option value="join">
-      <option value="edit">
-      <option value="unselectAll">
-    </datalist>
-    <input
-      class="level"
-      type="number"
-      id="level"
-      value="1"
-    />
-  </footer>
+			header {
+				height: 32px;
+			}
 
-  <script>
-    const main = document.getElementById('main');
-    const level = document.getElementById('level');
-    maxDiff = 1
-    maxId = 1
-    
-    toggleMainClick(true);
-    main.append(createCell({
-        id: maxId,
-        width: main.clientWidth - 2,
-        height: main.clientHeight - 2,
-        left: 0,
-        top: 0
-    }))
-    toggleEditMode()
-    
-    function getPx(value){
-        return `${parseInt(value)}px`
-    }
-    
-    function toggleEditMode(){
-        document.body.classList.toggle('editMode')
-    }
+			main {
+				height: calc(100vh - 32px);
+				width: 100vw;
+				position: relative;
+			}
 
-    function toggleMainClick(enable) {
-      const action = enable ? 'addEventListener' : 'removeEventListener';
-      main[action]('click', selectCell);
-    }
+			.editMode {
+				.cell {
+					border: 1px solid black;
 
-    function getLevel() {
-      return +level.value;
-    }
-    
-    function createCell({
-        zIndex,
-        id,
-        width,
-        height,
-        top,
-        left,
-    }){
-        return createEl({
-            className: 'cell',
-            datasets: [{ value: id, name: 'id' }],
-            style: {
-                top: getPx(top),
-                left: getPx(left),
-                height: getPx(height),
-                width: getPx(width),
-                ['z-index']: zIndex ?? id
-            }
-          })
-    }
+					&.selected {
+						border-color: red;
+					}
+				}
+			}
 
-    function getCellInfo(element) {
-      info = {
-          top: parseInt(element.style.top),
-          left: parseInt(element.style.left),
-          width: parseInt(element.style.width),
-          height: parseInt(element.style.height),
-      }
-      
-      return {
-          ...info,
-          bottom: info.top + info.height,
-          right: info.left + info.width,
-          id: +element.dataset.id
-      }
-    }
+			.cell {
+				position: fixed;
+			}
 
-    function getCells() {
-      return main.querySelectorAll('.cell')
-    }
+			.level {
+				width: 32px;
+			}
+		</style>
+	</head>
 
-    function selectCell(event) {
-      const el = event.target;
+	<body>
+		<div id="menuModal" class="menuModal">
+			<div class="header" id="menuModalHeader"></div>
+			<div class="main"></div>
+		</div>
+		<main id="main"></main>
+		<footer>
+			<button onclick="toggleMenuModal()">Menu</button>
+		</footer>
 
-      if (el.classList.contains('cell')) {
-        el.classList.toggle('selected');
-      }
-    }
+		<script>
+			menuSections = [
+				{
+					name: "main",
+					buttons: ["create", "edit", "delete"],
+					sections: [{ name: "a" }, { name: "1" }],
+				},
+			];
+			menuPathList = [""];
+			maxDiff = 1;
+			maxId = 1;
 
-    function splitCell({ direction, selectedCell, place = 'before', selectedCells }) {
-      const isHorizontal = direction === 'horizontalSlice';
-      const isVertical = direction === 'verticalSlice'
+			function getPx(value) {
+				return `${parseFloat(value)}px`;
+			}
 
-      const fragment = document.createDocumentFragment();
-      const newIds = getNewIds();
-      
-      const { width,height,top,left } = getCellInfo(selectedCell)
-        
-      calcWidth = isVertical ? width / (newIds.length+1) : width
-      calcHeight = isHorizontal ? height / (newIds.length+1) : height
+			function getFragment() {
+				return document.createDocumentFragment();
+			}
 
-      newIds.forEach((id, index) => {
-          calcLeft = isVertical ? left + index * calcWidth : left
-          calcTop = isHorizontal ? top + index * calcHeight : top
-          fragment.append(createCell({
-              id,
-              width: calcWidth,
-              height: calcHeight,
-              top: calcTop,
-              left: calcLeft
-         }));
-      });
+			function showMenuModalHeader() {
+				const fragment = getFragment();
 
-      selectedCell.style.width = calcWidth
-      selectedCell.style.height = calcHeight
-      selectedCell.style.left = isVertical ? left + calcWidth * newIds.length : left
-      selectedCell.style.top = isHorizontal ? top + calcHeight * newIds.length : top
+				menuPathList.forEach((path) => {
+					fragment.append(
+						createEl({
+							innerHTML: path,
+						})
+					);
+				});
 
-      selectedCell[place](fragment);
-    }
+				menuModalHeader.append(fragment);
+			}
 
-    function getCellId(cellEl) {
-      const idString = +cellEl.dataset.id;
-    }
+			function getMenuSection({ section = {}, pathIndex = 1 }) {
+				if (!section.routes) return section;
 
-    function getNewIds() {
-      const from = maxId + 1;
-      const sliceCount = getLevel() - 1;
-      newMax = from + sliceCount
-      maxId = newMax
-      return rangeArray({ from, to: newMax });
-    }
-    
-    function editCell(selectedCells) {
-        cell = selectedCells[0]
-        cell.contentEditable = cell.contentEditable === 'true' ? 'false' : 'true'
-        cell.focus()
-    }
-    
-    function joinCells(selectedCells) {
-        newLeft = null
-          newTop = null
-          newBottom = 0
-          newRight = 0
-          newId = 0
-          leftEl = null
-          rightEl = null
-          
-          selectedCells.forEach(selectedCell => {
-              const { id, width, height, top, left, right, bottom } = getCellInfo(selectedCell)
-              
-              if(newId < id) {
-                  newId = id
-              }
-              if(newLeft > left || newLeft === null) {
-                  newLeft = left
-                  el = selectedCell
-              }
-              if(newRight < right) newRight = right
-              if(newTop > top || newTop === null) newTop = top
-              if(newBottom < bottom) newBottom = bottom
-          })
-          newWidth = newRight - newLeft
-          newHeight = newBottom - newTop
-          
-          getCells().forEach(cell => {
-              const { left, right, top, bottom, id } = getCellInfo(cell)
-              
-              isInLeft = newLeft - maxDiff < left
-              isInRight = newRight + maxDiff > right
-              isInTop = newTop - maxDiff < top
-              isInBottom = newBottom + maxDiff > bottom
-              
-              if(isInBottom && isInTop && isInRight && isInLeft) {
-                  if (newId > id) newId = id
-                  
-                  cell.remove()
-              }
-          })
-          
-          main.append(createCell({
-              id: newId,
-              left: newLeft,
-              top: newTop,
-              width: newWidth,
-              height: newHeight,
-          }))
-    }
+				const path = menuPathList[pathIndex];
+				const isLastMenuPath = pathIndex === menuPathList.length - 1;
 
-    function changeMenu(menuEl) {
-      menuEl.blur()
-      const { value } = menuEl;
-      const selectedCells = getSelectedCells();
+				if (isLastMenuPath) return section;
 
-      if (value === 'verticalSlice' || value === 'horizontalSlice') {
-        selectedCells.forEach((selectedCell) => splitCell({ direction: value, selectedCell, selectedCells }));
-      } else if (value === 'unselectAll') {
-        selectedCells.forEach(selectedCell => selectedCell.classList.toggle('selected'));
-      } else if (value === 'join') {
-        joinCells(selectedCells)
-      } else if(value === 'edit') {
-        editCell(selectedCells)
-      } else if(value === 'editMode'){
-          toggleEditMode()
-      }
+				const currentSection = section.sections.find((childrenSection) => compare(childrenSection.name, path));
 
-      menuEl.value = '';
-    }
+				if (currentSection) {
+					return getMenuSection({ section: currentSection, index: pathIndex + 1 });
+				}
+			}
 
-    function getSelectedCells() {
-      return Array.from(document.querySelectorAll('.selected'));
-    }
+			function showMenuModalSections() {
+				const fragment = getFragment();
 
-    function createEl({ elName = 'div', className = '', type = '', datasets, innerHTML = '', style = {}, appendTo = '' }) {
-      const el = document.createElement(elName);
-      if (className) el.className = className;
-      if (datasets) datasets.forEach(({ value, name }) => el.dataset[name] = value)
-      if (type) el.type = type;
-      if (style) Object.keys(style).forEach(styleKey => {
-        el.style[styleKey] = style[styleKey]
-      })
-      if (innerHTML) el.innerHTML = innerHTML;
-      if (appendTo) document.querySelector(appendTo).append(el);
-      return el;
-    }
+				if (menuPathList.length) {
+					const firstSection = menuSections.find((section) => compare(section.name, menuPathList[0]));
 
-    function rangeArray({ from = 0, to = 0, before = '', handler }) {
-      const newArray = [];
-      for (let index = from; index <= to; index++) {
-        let value = `${before}${index}`;
-        handler?.(value, index);
-        newArray.push(value);
-      }
-      return newArray;
-    }
+					const currentSection = getMenuSection({
+						section: firstSection,
+					});
+				}
+				menuSections.forEach((section) => {
+					if (menuPathList) {
+						section.buttons.forEach((buttonName) => {
+							fragment.append(
+								createEl({
+									innerHTML: buttonName,
+								})
+							);
+						});
+					} else
+						fragment.append(
+							createEl({
+								innerHTML: section.name,
+							})
+						);
+				});
+			}
 
-    function compare(id1, id2) {
-      return String(id1) === String(id2);
-    }
+			function toggleMenuModal() {
+				menuModal.classList.toggle("show");
+				menuModal.style.zIndex = maxId + 1;
+				showMenuModalHeader();
+				showMenuModalSections();
+			}
 
-    function log() {
-      for (var i = 0; i < arguments.length; i++) {
-        console.log(arguments[i])
-      }
-    }
-  </script>
-</body>
+			function createCell({ zIndex, id, width, height, top, left }) {
+				return createEl({
+					className: "cell",
+					datasets: [{ value: id, name: "id" }],
+					style: {
+						top: getPx(top),
+						left: getPx(left),
+						height: getPx(height),
+						width: getPx(width),
+						["z-index"]: zIndex ?? id,
+					},
+				});
+			}
 
+			function getCellInfo(element) {
+				info = {
+					top: parseFloat(element.style.top),
+					left: parseFloat(element.style.left),
+					width: parseFloat(element.style.width),
+					height: parseFloat(element.style.height),
+				};
+
+				return {
+					...info,
+					bottom: info.top + info.height,
+					right: info.left + info.width,
+					id: +element.dataset.id,
+				};
+			}
+
+			function getCells() {
+				return main.querySelectorAll(".cell");
+			}
+
+			function selectCell(event) {
+				const el = event.target;
+
+				if (el.classList.contains("cell")) {
+					el.classList.toggle("selected");
+				}
+			}
+
+			function getCellId(cellEl) {
+				const idString = +cellEl.dataset.id;
+			}
+
+			function getNewIds() {
+				const from = maxId + maxDiff;
+				const sliceCount = getLevel() - maxDiff;
+				newMax = from + sliceCount;
+				maxId = newMax;
+				return rangeArray({ from, to: newMax });
+			}
+
+			function getSelectedCells() {
+				return Array.from(document.querySelectorAll(".selected"));
+			}
+
+			function createEl({
+				elName = "div",
+				className = "",
+				type = "",
+				datasets,
+				innerHTML = "",
+				style = {},
+				appendTo = "",
+			}) {
+				const el = document.createElement(elName);
+				if (className) el.className = className;
+				if (datasets) datasets.forEach(({ value, name }) => (el.dataset[name] = value));
+				if (type) el.type = type;
+				if (style)
+					Object.keys(style).forEach((styleKey) => {
+						el.style[styleKey] = style[styleKey];
+					});
+				if (innerHTML) el.innerHTML = innerHTML;
+				if (appendTo) document.querySelector(appendTo).append(el);
+				return el;
+			}
+
+			function rangeArray({ from = 0, to = 0, before = "", handler }) {
+				const newArray = [];
+				for (let index = from; index <= to; index++) {
+					let value = `${before}${index}`;
+					handler?.(value, index);
+					newArray.push(value);
+				}
+				return newArray;
+			}
+
+			function compare(id1, id2) {
+				return String(id1) === String(id2);
+			}
+
+			function log() {
+				for (var i = 0; i < arguments.length; i++) {
+					console.log(arguments[i]);
+				}
+			}
+		</script>
+	</body>
 </html>
