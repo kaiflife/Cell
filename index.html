@@ -41,6 +41,7 @@
 
 				.main {
 					display: flex;
+					flex-direction: column;
 					height: calc(100vh - 32px);
 					overflow-y: auto;
 				}
@@ -79,7 +80,7 @@
 	<body>
 		<div id="menuModal" class="menuModal">
 			<div class="header" id="menuModalHeader"></div>
-			<div class="main"></div>
+			<div class="main" id="menuModalMain"></div>
 		</div>
 		<main id="main"></main>
 		<footer>
@@ -136,7 +137,7 @@
 			}
 
 			function showMenuModalSections() {
-				const fragment = getFragment();
+				const sectionsFragment = getFragment();
 
 				if (menuPathList.length) {
 					const firstSection = menuSections.find((section) => compare(section.name, menuPathList[0]));
@@ -145,22 +146,25 @@
 						section: firstSection,
 					});
 				}
+
 				menuSections.forEach((section) => {
-					if (menuPathList) {
+					if (menuPathList.length) {
 						section.buttons.forEach((buttonName) => {
-							fragment.append(
+							sectionsFragment.append(
 								createEl({
 									innerHTML: buttonName,
 								})
 							);
 						});
 					} else
-						fragment.append(
+						sectionsFragment.append(
 							createEl({
 								innerHTML: section.name,
 							})
 						);
 				});
+
+				menuModalMain.append(sectionsFragment);
 			}
 
 			function toggleMenuModal() {
