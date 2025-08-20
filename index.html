@@ -88,14 +88,27 @@
 		</footer>
 
 		<script>
-			menuSections = [
-				{
-					name: "main",
-					buttons: ["create", "edit", "delete"],
-					sections: [{ name: "a" }, { name: "1" }],
+			menuPathList = [];
+			buttonsAction = {
+				create: () => {
+					const createFragment = getFragment();
+
+					["div", "span", "p", "input", "button"].forEach((tag) => {
+						createFragment.append(
+							createEl({
+								tag,
+								onClick: () => {
+									closeMenuModal();
+								},
+							})
+						);
+					});
+
+					menuModalMain.replaceChildren(createFragment);
 				},
-			];
-			menuPathList = [""];
+				edit: () => {},
+				delete: () => {},
+			};
 			maxDiff = 1;
 			maxId = 1;
 
@@ -103,22 +116,25 @@
 				return `${parseFloat(value)}px`;
 			}
 
+			function closeMenuModal() {
+				menuPathList = [];
+				menuModal.classList.remove("show");
+				menuModalHeader.replaceChildren();
+				menuModalMain.replaceChildren();
+			}
+
 			function getFragment() {
 				return document.createDocumentFragment();
 			}
 
-			function showMenuModalHeader() {
-				const fragment = getFragment();
-
-				menuPathList.forEach((path) => {
-					fragment.append(
-						createEl({
-							innerHTML: path,
-						})
-					);
+			function addMenuModalHeader(path) {
+				const el = createEl({
+					innerHTML: path,
 				});
 
-				menuModalHeader.append(fragment);
+				menuPathList.push(path);
+
+				menuModalHeader.append(el);
 			}
 
 			function getMenuSection({ section = {}, pathIndex = 1 }) {
@@ -136,43 +152,29 @@
 				}
 			}
 
-			function showMenuModalSections() {
-				const sectionsFragment = getFragment();
+			function showMainModalButtons() {
+				const mainButtons = getFragment();
 
-				if (menuPathList.length) {
-					const firstSection = menuSections.find((section) => compare(section.name, menuPathList[0]));
-
-					const currentSection = getMenuSection({
-						section: firstSection,
-					});
-				}
-
-				menuSections.forEach((section) => {
-					if (menuPathList.length) {
-						section.buttons.forEach((buttonName) => {
-							sectionsFragment.append(
-								createEl({
-									innerHTML: buttonName,
-									onclick: 
-								})
-							);
-						});
-					} else
-						sectionsFragment.append(
-							createEl({
-								innerHTML: section.name,
-							})
-						);
+				["create", "edit", "delete"].forEach((buttonName) => {
+					mainButtons.append(
+						createEl({
+							innerHTML: buttonName,
+							onClick: () => {
+								addMenuModalHeader(buttonName);
+								buttonsAction[buttonName]();
+							},
+						})
+					);
 				});
 
-				menuModalMain.append(sectionsFragment);
+				menuModalMain.append(mainButtons);
 			}
 
 			function toggleMenuModal() {
-				menuModal.classList.toggle("show");
+				menuModal.classList.add("show");
 				menuModal.style.zIndex = maxId + 1;
-				showMenuModalHeader();
-				showMenuModalSections();
+				addMenuModalHeader("main");
+				showMainModalButtons();
 			}
 
 			function createCell({ zIndex, id, width, height, top, left }) {
@@ -234,18 +236,18 @@
 			}
 
 			function createEl({
-				elName = "div",
+				tag = "div",
 				className = "",
 				type = "",
 				datasets,
 				innerHTML = "",
 				style = {},
 				appendTo = "",
-				onclick,
+				onClick,
 			}) {
-				const el = document.createElement(elName);
+				const el = document.createElement(tag);
 				if (className) el.className = className;
-				if (onclick) el.onclick = onclick;
+				if (onClick) el.onclick = onClick;
 				if (datasets) datasets.forEach(({ value, name }) => (el.dataset[name] = value));
 				if (type) el.type = type;
 				if (style)
