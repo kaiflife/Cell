@@ -153,6 +153,7 @@
 							sectionsFragment.append(
 								createEl({
 									innerHTML: buttonName,
+									onclick: 
 								})
 							);
 						});
@@ -240,9 +241,11 @@
 				innerHTML = "",
 				style = {},
 				appendTo = "",
+				onclick,
 			}) {
 				const el = document.createElement(elName);
 				if (className) el.className = className;
+				if (onclick) el.onclick = onclick;
 				if (datasets) datasets.forEach(({ value, name }) => (el.dataset[name] = value));
 				if (type) el.type = type;
 				if (style)
