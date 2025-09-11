@@ -79,9 +79,7 @@
 
 	<body>
 		<div id="menuModal" class="menuModal">
-			<div class="header" id="menuModalHeader">
-				<button onclick="removeLastMenuModalHeader()">Back</button>
-			</div>
+			<div class="header" id="menuModalHeader"></div>
 			<div class="main" id="menuModalMain"></div>
 		</div>
 		<main id="main"></main>
@@ -142,9 +140,12 @@
 			}
 
 			function addMenuModalHeader(path) {
-				const el = createEl({
-					innerHTML: path,
-				});
+				const el = createEl({ innerHTML: path });
+
+				if (!menuPathList.length) {
+					button = createEl({ innerHTML: "back", tag: "button", onClick: removeLastMenuModalHeader });
+					menuModalHeader.append(button);
+				}
 
 				menuPathList.push(path);
 
@@ -155,6 +156,7 @@
 				menuPathList.pop();
 
 				menuModalHeader.removeChild(menuModalHeader.lastElementChild);
+				menuModalMain.replaceChildren();
 
 				if (!menuPathList.length) {
 					closeMenuModal();
