@@ -79,7 +79,9 @@
 
 	<body>
 		<div id="menuModal" class="menuModal">
-			<div class="header" id="menuModalHeader"></div>
+			<div class="header" id="menuModalHeader">
+				<button onclick="removeLastMenuModalHeader()">Back</button>
+			</div>
 			<div class="main" id="menuModalMain"></div>
 		</div>
 		<main id="main"></main>
@@ -89,22 +91,32 @@
 
 		<script>
 			menuPathList = [];
+			CREATE_ELS_NAMES_LIST = ["div", "span", "p", "input", "button"];
+			clickedEl = null;
+			activeListenerName = "";
+			menuModalListeners = {
+				create: (event) => {
+					const divEL = event.target;
+
+					if (!CREATE_ELS_NAMES_LIST.includes(divEL.innerHTML)) return;
+
+					main.append(createEl({ tag: divEL.innerHTML, innerHTML: divEL.innerHTML }));
+					closeMenuModal();
+				},
+			};
+
 			buttonsAction = {
 				create: () => {
 					const createFragment = getFragment();
 
-					["div", "span", "p", "input", "button"].forEach((tag) => {
-						createFragment.append(
-							createEl({
-								tag,
-								onClick: () => {
-									closeMenuModal();
-								},
-							})
-						);
+					CREATE_ELS_NAMES_LIST.forEach((tag) => {
+						createFragment.append(createEl({ innerHTML: tag }));
 					});
 
 					menuModalMain.replaceChildren(createFragment);
+
+					activeListenerName = "create";
+					menuModalMain.addEventListener("click", menuModalListeners[activeListenerName]);
 				},
 				edit: () => {},
 				delete: () => {},
@@ -117,8 +129,10 @@
 			}
 
 			function closeMenuModal() {
-				menuPathList = [];
 				menuModal.classList.remove("show");
+				menuModalMain.removeEventListener("click", menuModalListeners[activeListenerName]);
+				activeListenerName = "";
+				menuPathList = [];
 				menuModalHeader.replaceChildren();
 				menuModalMain.replaceChildren();
 			}
@@ -135,6 +149,16 @@
 				menuPathList.push(path);
 
 				menuModalHeader.append(el);
+			}
+
+			function removeLastMenuModalHeader() {
+				menuPathList.pop();
+
+				menuModalHeader.removeChild(menuModalHeader.lastElementChild);
+
+				if (!menuPathList.length) {
+					closeMenuModal();
+				}
 			}
 
 			function getMenuSection({ section = {}, pathIndex = 1 }) {
@@ -173,7 +197,7 @@
 			function toggleMenuModal() {
 				menuModal.classList.add("show");
 				menuModal.style.zIndex = maxId + 1;
-				addMenuModalHeader("main");
+				addMenuModalHeader("menu");
 				showMainModalButtons();
 			}
 
@@ -244,6 +268,7 @@
 				style = {},
 				appendTo = "",
 				onClick,
+				props,
 			}) {
 				const el = document.createElement(tag);
 				if (className) el.className = className;
@@ -256,6 +281,11 @@
 					});
 				if (innerHTML) el.innerHTML = innerHTML;
 				if (appendTo) document.querySelector(appendTo).append(el);
+				if (props) {
+					Object.keys(props).forEach((propName) => {
+						el[propName] = props[propName];
+					});
+				}
 				return el;
 			}
 
