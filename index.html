@@ -90,16 +90,48 @@
 		<script>
 			menuPathList = [];
 			CREATE_ELS_NAMES_LIST = ["div", "span", "p", "input", "button"];
-			clickedEl = null;
+			clickedElName = "";
 			activeListenerName = "";
 			menuModalListeners = {
 				create: (event) => {
 					const divEL = event.target;
 
-					if (!CREATE_ELS_NAMES_LIST.includes(divEL.innerHTML)) return;
+					if (!CREATE_ELS_NAMES_LIST.includes(divEL.innerHTML)) {
+					    return;
+					}
 
-					main.append(createEl({ tag: divEL.innerHTML, innerHTML: divEL.innerHTML }));
-					closeMenuModal();
+					clickedElName = divEL.innerHTML;
+					addMenuModalHeader(clickedElName);
+					
+					const idInput = createEl({
+					    tag: "input",
+					    props: {
+					        id: "elIdInput",
+					        onblur: () => {
+					            log(elIdInput.value)
+					            if (elIdInput.value) {
+					                maxId +=1;
+					                createEl({
+					                    tag: clickedElName,
+					                    appendTo: "body",
+					                    props:{
+					                        innerHTML: clickedElName,
+					                        id: elIdInput.value,
+					                    },
+					                    style: {
+					                        "z-index": maxId,
+					                        position: "absolute",
+					                        top: 0,
+					                        left: 0
+					                    }
+					                });
+					                elIdInput.remove();
+					                closeMenuModal();
+					            }
+					        },
+					    }
+					});
+					menuModalMain.replaceChildren(idInput)
 				},
 			};
 
@@ -108,7 +140,7 @@
 					const createFragment = getFragment();
 
 					CREATE_ELS_NAMES_LIST.forEach((tag) => {
-						createFragment.append(createEl({ innerHTML: tag }));
+						createFragment.append(createEl({ props:{innerHTML: tag }}));
 					});
 
 					menuModalMain.replaceChildren(createFragment);
@@ -121,6 +153,7 @@
 			};
 			maxDiff = 1;
 			maxId = 1;
+	
 
 			function getPx(value) {
 				return `${parseFloat(value)}px`;
@@ -140,10 +173,10 @@
 			}
 
 			function addMenuModalHeader(path) {
-				const el = createEl({ innerHTML: path });
+				const el = createEl({props:{ innerHTML: path }});
 
 				if (!menuPathList.length) {
-					button = createEl({ innerHTML: "back", tag: "button", onClick: removeLastMenuModalHeader });
+					button = createEl({props:{ innerHTML: "back", onclick: removeLastMenuModalHeader}, tag: "button" });
 					menuModalHeader.append(button);
 				}
 
@@ -184,11 +217,12 @@
 				["create", "edit", "delete"].forEach((buttonName) => {
 					mainButtons.append(
 						createEl({
+						    props:{
 							innerHTML: buttonName,
-							onClick: () => {
+							onclick: () => {
 								addMenuModalHeader(buttonName);
 								buttonsAction[buttonName]();
-							},
+							}},
 						})
 					);
 				});
@@ -203,19 +237,7 @@
 				showMainModalButtons();
 			}
 
-			function createCell({ zIndex, id, width, height, top, left }) {
-				return createEl({
-					className: "cell",
-					datasets: [{ value: id, name: "id" }],
-					style: {
-						top: getPx(top),
-						left: getPx(left),
-						height: getPx(height),
-						width: getPx(width),
-						["z-index"]: zIndex ?? id,
-					},
-				});
-			}
+		
 
 			function getCellInfo(element) {
 				info = {
@@ -229,59 +251,25 @@
 					...info,
 					bottom: info.top + info.height,
 					right: info.left + info.width,
-					id: +element.dataset.id,
+					id: +element.id,
 				};
-			}
-
-			function getCells() {
-				return main.querySelectorAll(".cell");
-			}
-
-			function selectCell(event) {
-				const el = event.target;
-
-				if (el.classList.contains("cell")) {
-					el.classList.toggle("selected");
-				}
-			}
-
-			function getCellId(cellEl) {
-				const idString = +cellEl.dataset.id;
-			}
-
-			function getNewIds() {
-				const from = maxId + maxDiff;
-				const sliceCount = getLevel() - maxDiff;
-				newMax = from + sliceCount;
-				maxId = newMax;
-				return rangeArray({ from, to: newMax });
-			}
-
-			function getSelectedCells() {
-				return Array.from(document.querySelectorAll(".selected"));
 			}
 
 			function createEl({
 				tag = "div",
-				className = "",
-				type = "",
 				datasets,
-				innerHTML = "",
 				style = {},
 				appendTo = "",
-				onClick,
 				props,
 			}) {
 				const el = document.createElement(tag);
-				if (className) el.className = className;
-				if (onClick) el.onclick = onClick;
+				
 				if (datasets) datasets.forEach(({ value, name }) => (el.dataset[name] = value));
-				if (type) el.type = type;
-				if (style)
+				if (style) {
 					Object.keys(style).forEach((styleKey) => {
 						el.style[styleKey] = style[styleKey];
 					});
-				if (innerHTML) el.innerHTML = innerHTML;
+				}
 				if (appendTo) document.querySelector(appendTo).append(el);
 				if (props) {
 					Object.keys(props).forEach((propName) => {
