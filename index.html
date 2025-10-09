@@ -67,10 +67,6 @@
 				}
 			}
 
-			.cell {
-				position: fixed;
-			}
-
 			.level {
 				width: 32px;
 			}
@@ -89,6 +85,7 @@
 
 		<script>
 			menuPathList = [];
+			mainIdsList = []
 			CREATE_ELS_NAMES_LIST = ["div", "span", "p", "input", "button"];
 			clickedElName = "";
 			activeListenerName = "";
@@ -108,15 +105,15 @@
 					    props: {
 					        id: "elIdInput",
 					        onblur: () => {
-					            log(elIdInput.value)
-					            if (elIdInput.value) {
+					            newId = elIdInput.value
+					            if (newId && !mainIdsList.includes(newId)) {
 					                maxId +=1;
 					                createEl({
 					                    tag: clickedElName,
-					                    appendTo: "body",
+					                    appendTo: "#main",
 					                    props:{
 					                        innerHTML: clickedElName,
-					                        id: elIdInput.value,
+					                        id: newId,
 					                    },
 					                    style: {
 					                        "z-index": maxId,
@@ -125,6 +122,7 @@
 					                        left: 0
 					                    }
 					                });
+					                mainButtons.push(newId)
 					                elIdInput.remove();
 					                closeMenuModal();
 					            }
