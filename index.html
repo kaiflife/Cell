@@ -90,8 +90,10 @@
 			maxId = 1;
 			CREATE_ELS_NAMES_LIST = ["div", "span", "p", "input", "button"];
 			ROUTE_ACTIONS = {
-				"/menu": openMainModal,
-				"/menu/create": openCreateModal,
+				"/menu": menuF,
+				"/menu/create": menuCreateF,
+				"/menu/edit": menuEditF,
+				"/menu/edit/:id": menuEditIdF,
 			};
 			clickedElName = "";
 
@@ -99,7 +101,56 @@
 				return `/${menuPathList.join("/")}`;
 			}
 
-			function openCreateModal() {
+			function menuEditIdF() {}
+
+			function menuEditF() {
+				const menuEditSearchEl = createEl({
+					tag: "input",
+					props: { id: "searchElIds" },
+				});
+
+				const selectEditElAction = (event) => {
+					const elId = event.target.dataset.id;
+
+					if (elId) {
+						menuModalMain.querySelector(`[data-menuEditElId="${clickedElName}"]`).backgroundColor = "";
+
+						clickedElName = elId;
+
+						event.target.style.backgroundColor = "gray";
+					}
+				};
+
+				menuModalMain.addEventListener("click", selectEditElAction);
+
+				const menuEditFragment = getFragment();
+				menuEditFragment.append(menuEditSearchEl);
+
+				mainIdsList.forEach((id) => {
+					menuEditFragment.append(
+						createEl({
+							tag: "p",
+							datasets: [{ name: "menuEditElId", value: id }],
+							props: { textContent: id },
+						})
+					);
+				});
+
+				menuEditFragment.append(
+					createEl({
+						props: {
+							textContent: "Edit",
+							onclick: () => {
+								addMenuModalHeader(clickedElName);
+							},
+						},
+					})
+				);
+
+				menuModalMain.replaceChildren(menuEditFragment);
+			}
+
+			function menuCreateF() {
 				const idInput = createEl({
 					tag: "input",
 					props: { id: "elIdInput" },
@@ -110,14 +161,14 @@
 				createFragment.append(idInput);
 
 				const onClickCreateEl = (event) => {
-					if (!event.target.dataset.create) return;
+					if (!event.target.dataset.el) return;
 
 					if (clickedElName) {
-						menuModalMain.querySelector(`[data-el="${clickedElName}"]`).style.borderBottom = "";
+						menuModalMain.querySelector(`[data-el="${clickedElName}"]`).style.backgroundColor = "";
 					}
 
 					clickedElName = event.target.textContent;
-					event.target.style.borderBottom = "1px solid black";
+					event.target.style.backgroundColor = "gray";
 				};
 
 				menuModalMain.addEventListener("click", onClickCreateEl);
@@ -131,30 +182,32 @@
 				createFragment.append(
 					createEl({
 						tag: "button",
-						props: { textContent: "Create" },
-						onclick: () => {
-							newId = elIdInput.value;
+						props: {
+							textContent: "Create",
+							onclick: () => {
+								newId = elIdInput.value;
 
-							if (newId && !mainIdsList.includes(newId)) {
-								maxId += 1;
-								createEl({
-									tag: clickedElName,
-									appendTo: "#main",
-									props: {
-										innerHTML: clickedElName,
-										id: newId,
-									},
-									style: {
-										"z-index": maxId,
-										position: "absolute",
-										top: 0,
-										left: 0,
-									},
-								});
-								mainIdsList.push(newId);
-								menuModalMain.removeEventListener("click", onClickCreateEl);
-								closeMenuModal();
-							}
+								if (newId && clickedElName && !mainIdsList.includes(newId)) {
+									maxId += 1;
+									createEl({
+										tag: clickedElName,
+										appendTo: "#main",
+										props: {
+											innerHTML: clickedElName,
+											id: newId,
+										},
+										style: {
+											"z-index": maxId,
+											position: "absolute",
+											top: 0,
+											left: 0,
+										},
+									});
+									mainIdsList.push(newId);
+									menuModalMain.removeEventListener("click", onClickCreateEl);
+									closeMenuModal();
+								}
+							},
 						},
 					})
 				);
@@ -177,6 +230,12 @@
 				return document.createDocumentFragment();
 			}
 
+			function callNewRouteF(route, routeWithId) {
+				const newRouteF = ROUTE_ACTIONS[route] ?? ROUTE_ACTIONS[`${routeWithId}/:id`];
+
+				newRouteF();
+			}
+
 			function addMenuModalHeader(path) {
 				const el = createEl({ props: { innerHTML: path } });
 
@@ -188,22 +247,29 @@
 					menuModalHeader.append(button);
 				}
 
+				const prevRoute = getMenuPath();
+
 				menuPathList.push(path);
+				const newRoute = getMenuPath();
 
 				menuModalHeader.append(el);
 
 				menuModalMain.replaceChildren();
 
-				const route = getMenuPath();
-
-				ROUTE_ACTIONS[route]();
+				callNewRouteF(newRoute, prevRoute);
 			}
 
 			function removeLastMenuModalHeader() {
+				const prevRoute = getMenuPath();
+
 				menuPathList.pop();
+
+				const newRoute = getMenuPath();
 
 				menuModalHeader.removeChild(menuModalHeader.lastElementChild);
 				menuModalMain.replaceChildren();
+
+				callNewRouteF(newRoute, prevRoute);
 
 				if (!menuPathList.length) {
 					closeMenuModal();
@@ -225,7 +291,7 @@
 				}
 			}
 
-			function openMainModal() {
+			function menuF() {
 				const mainButtons = getFragment();
 
 				["create", "edit", "delete"].forEach((buttonName) => {
