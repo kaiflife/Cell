@@ -80,78 +80,87 @@
 		</div>
 		<main id="main"></main>
 		<footer>
-			<button onclick="toggleMenuModal()">Menu</button>
+			<button onclick="openMenuModal()">Menu</button>
 		</footer>
 
 		<script>
 			menuPathList = [];
-			mainIdsList = []
-			CREATE_ELS_NAMES_LIST = ["div", "span", "p", "input", "button"];
-			clickedElName = "";
-			activeListenerName = "";
-			menuModalListeners = {
-				create: (event) => {
-					const divEL = event.target;
-
-					if (!CREATE_ELS_NAMES_LIST.includes(divEL.innerHTML)) {
-					    return;
-					}
-
-					clickedElName = divEL.innerHTML;
-					addMenuModalHeader(clickedElName);
-					
-					const idInput = createEl({
-					    tag: "input",
-					    props: {
-					        id: "elIdInput",
-					        onblur: () => {
-					            newId = elIdInput.value
-					            if (newId && !mainIdsList.includes(newId)) {
-					                maxId +=1;
-					                createEl({
-					                    tag: clickedElName,
-					                    appendTo: "#main",
-					                    props:{
-					                        innerHTML: clickedElName,
-					                        id: newId,
-					                    },
-					                    style: {
-					                        "z-index": maxId,
-					                        position: "absolute",
-					                        top: 0,
-					                        left: 0
-					                    }
-					                });
-					                mainButtons.push(newId)
-					                elIdInput.remove();
-					                closeMenuModal();
-					            }
-					        },
-					    }
-					});
-					menuModalMain.replaceChildren(idInput)
-				},
-			};
-
-			buttonsAction = {
-				create: () => {
-					const createFragment = getFragment();
-
-					CREATE_ELS_NAMES_LIST.forEach((tag) => {
-						createFragment.append(createEl({ props:{innerHTML: tag }}));
-					});
-
-					menuModalMain.replaceChildren(createFragment);
-
-					activeListenerName = "create";
-					menuModalMain.addEventListener("click", menuModalListeners[activeListenerName]);
-				},
-				edit: () => {},
-				delete: () => {},
-			};
+			mainIdsList = [];
 			maxDiff = 1;
 			maxId = 1;
-	
+			CREATE_ELS_NAMES_LIST = ["div", "span", "p", "input", "button"];
+			ROUTE_ACTIONS = {
+				"/menu": openMainModal,
+				"/menu/create": openCreateModal,
+			};
+			clickedElName = "";
+
+			function getMenuPath() {
+				return `/${menuPathList.join("/")}`;
+			}
+
+			function openCreateModal() {
+				const idInput = createEl({
+					tag: "input",
+					props: { id: "elIdInput" },
+				});
+
+				const createFragment = getFragment();
+
+				createFragment.append(idInput);
+
+				const onClickCreateEl = (event) => {
+					if (!event.target.dataset.create) return;
+
+					if (clickedElName) {
+						menuModalMain.querySelector(`[data-el="${clickedElName}"]`).style.borderBottom = "";
+					}
+
+					clickedElName = event.target.textContent;
+					event.target.style.borderBottom = "1px solid black";
+				};
+
+				menuModalMain.addEventListener("click", onClickCreateEl);
+
+				CREATE_ELS_NAMES_LIST.forEach((tag) => {
+					createFragment.append(
+						createEl({ datasets: [{ value: tag, name: "el" }], props: { innerHTML: tag } })
+					);
+				});
+
+				createFragment.append(
+					createEl({
+						tag: "button",
+						props: { textContent: "Create" },
+						onclick: () => {
+							newId = elIdInput.value;
+
+							if (newId && !mainIdsList.includes(newId)) {
+								maxId += 1;
+								createEl({
+									tag: clickedElName,
+									appendTo: "#main",
+									props: {
+										innerHTML: clickedElName,
+										id: newId,
+									},
+									style: {
+										"z-index": maxId,
+										position: "absolute",
+										top: 0,
+										left: 0,
+									},
+								});
+								mainIdsList.push(newId);
+								menuModalMain.removeEventListener("click", onClickCreateEl);
+								closeMenuModal();
+							}
+						},
+					})
+				);
+
+				menuModalMain.append(createFragment);
+			}
 
 			function getPx(value) {
 				return `${parseFloat(value)}px`;
@@ -159,8 +168,6 @@
 
 			function closeMenuModal() {
 				menuModal.classList.remove("show");
-				menuModalMain.removeEventListener("click", menuModalListeners[activeListenerName]);
-				activeListenerName = "";
 				menuPathList = [];
 				menuModalHeader.replaceChildren();
 				menuModalMain.replaceChildren();
@@ -171,16 +178,25 @@
 			}
 
 			function addMenuModalHeader(path) {
-				const el = createEl({props:{ innerHTML: path }});
+				const el = createEl({ props: { innerHTML: path } });
 
 				if (!menuPathList.length) {
-					button = createEl({props:{ innerHTML: "back", onclick: removeLastMenuModalHeader}, tag: "button" });
+					button = createEl({
+						props: { innerHTML: "back", onclick: removeLastMenuModalHeader },
+						tag: "button",
+					});
 					menuModalHeader.append(button);
 				}
 
 				menuPathList.push(path);
 
 				menuModalHeader.append(el);
+
+				menuModalMain.replaceChildren();
+
+				const route = getMenuPath();
+
+				ROUTE_ACTIONS[route]();
 			}
 
 			function removeLastMenuModalHeader() {
@@ -209,33 +225,31 @@
 				}
 			}
 
-			function showMainModalButtons() {
+			function openMainModal() {
 				const mainButtons = getFragment();
 
 				["create", "edit", "delete"].forEach((buttonName) => {
 					mainButtons.append(
 						createEl({
-						    props:{
-							innerHTML: buttonName,
-							onclick: () => {
-								addMenuModalHeader(buttonName);
-								buttonsAction[buttonName]();
-							}},
+							props: {
+								innerHTML: buttonName,
+								onclick: () => {
+									addMenuModalHeader(buttonName);
+								},
+							},
 						})
 					);
 				});
 
 				menuModalMain.append(mainButtons);
-			}
 
-			function toggleMenuModal() {
 				menuModal.classList.add("show");
 				menuModal.style.zIndex = maxId + 1;
-				addMenuModalHeader("menu");
-				showMainModalButtons();
 			}
 
-		
+			function openMenuModal() {
+				addMenuModalHeader("menu");
+			}
 
 			function getCellInfo(element) {
 				info = {
@@ -253,15 +267,9 @@
 				};
 			}
 
-			function createEl({
-				tag = "div",
-				datasets,
-				style = {},
-				appendTo = "",
-				props,
-			}) {
+			function createEl({ tag = "div", datasets, style = {}, appendTo = "", props }) {
 				const el = document.createElement(tag);
-				
+
 				if (datasets) datasets.forEach(({ value, name }) => (el.dataset[name] = value));
 				if (style) {
 					Object.keys(style).forEach((styleKey) => {
