@@ -1,484 +1,525 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<meta name="description" content="" />
-		<title>Constructor</title>
-		<style>
-			body {
-				margin: 0;
-				padding: 0;
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="description" content="" />
+	<title>Constructor</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+		}
+
+		.menuModal {
+			display: none;
+			position: fixed;
+			flex-direction: column;
+			top: 0;
+			left: 0;
+			width: 100vw;
+			height: 100vh;
+
+			&.show {
+				display: flex;
 			}
 
-			.menuModal {
-				display: none;
-				position: fixed;
-				flex-direction: column;
-				top: 0;
-				left: 0;
+			.header {
+				display: flex;
 				width: 100vw;
-				height: 100vh;
-
-				&.show {
-					display: flex;
-				}
-
-				.header {
-					display: flex;
-					width: 100vw;
-					height: 32px;
-					overflow-x: auto;
-
-					div {
-						color: red;
-
-						&::before {
-							content: "/";
-						}
-					}
-				}
-
-				.main {
-					display: flex;
-					flex-direction: column;
-					height: calc(100vh - 32px);
-					overflow-y: auto;
-				}
-			}
-
-			header {
 				height: 32px;
-			}
+				overflow-x: auto;
 
-			main {
-				height: calc(100vh - 32px);
-				width: 100vw;
-				position: relative;
-			}
+				div {
+					color: red;
 
-			.editMode {
-				.cell {
-					border: 1px solid black;
-
-					&.selected {
-						border-color: red;
+					&::before {
+						content: "/";
 					}
 				}
 			}
 
-			.level {
-				width: 32px;
+			.main {
+				display: flex;
+				flex-direction: column;
+				height: calc(100vh - 32px);
+				overflow-y: auto;
 			}
-		</style>
-	</head>
+		}
 
-	<body>
-		<div id="menuModal" class="menuModal">
-			<div class="header" id="menuModalHeader"></div>
-			<div class="main" id="menuModalMain"></div>
-		</div>
-		<main id="main"></main>
-		<footer>
-			<button onclick="openMenuModal()">Menu</button>
-		</footer>
+		header {
+			height: 32px;
+		}
 
-		<script>
-			menuPathList = [];
-			mainIdsList = [];
-			maxDiff = 1;
-			maxId = 1;
-			CREATE_ELS_NAMES_LIST = ["div", "span", "p", "input", "button"];
-			ROUTE_ACTIONS = {
-				"/menu": menuF,
-				"/menu/create": menuCreateF,
-				"/menu/edit": menuEditF,
-				"/menu/edit/:id": menuEditIdF,
-			};
-			clickedElName = "";
+		main {
+			height: calc(100vh - 32px);
+			width: 100vw;
+			position: relative;
+		}
 
-			function getMenuPath() {
-				return `/${menuPathList.join("/")}`;
+		.editMode {
+			.cell {
+				border: 1px solid black;
+
+				&.selected {
+					border-color: red;
+				}
 			}
+		}
 
-			function menuEditIdF() {
-				const selectedId = menuPathList.at(-1);
-				const selectedEl = window[selectedId];
+		.level {
+			width: 32px;
+		}
+	</style>
+</head>
 
-				const menuEditIdTopInputEl = createEl({
-					appendTo: menuModalMain,
-					tag: "input",
-					props: { type: "number" },
-					listeners: [
-						{
-							eventName: "input",
-							callback: () => {
-								menuEditIdTopInputRangeEl.value = event.target.value;
-								selectedEl.style.top = `${menuEditIdTopInputRangeEl.value}px`;
-							},
+<body>
+	<div id="menuModal" class="menuModal">
+		<div class="header" id="menuModalHeader"></div>
+		<div class="main" id="menuModalMain"></div>
+	</div>
+	<main id="main"></main>
+	<footer>
+		<button onclick="openMenuModal()">Menu</button>
+	</footer>
+
+	<script>
+		menuPathList = [];
+		mainIdsList = [];
+		maxDiff = 1;
+		maxId = 1;
+		CREATE_ELS_NAMES_LIST = ["div", "span", "p", "input", "button"];
+		ROUTE_ACTIONS = {
+			"/menu": menuF,
+			"/menu/create": menuCreateF,
+			"/menu/edit": menuEditF,
+			"/menu/edit/:id": menuEditIdF,
+		};
+		clickedElName = "";
+
+		function getMenuPath() {
+			return `/${menuPathList.join("/")}`;
+		}
+
+		// Функция для скачивания HTML-кода страницы
+		function downloadHTML() {
+			// Получаем весь HTML-код страницы
+			const htmlContent = document.documentElement.outerHTML;
+
+			// Создаем Blob объект с HTML-содержимым
+			const blob = new Blob([htmlContent], {
+				type: 'text/html;charset=utf-8'
+			});
+
+			// Создаем URL для скачивания
+			const url = URL.createObjectURL(blob);
+
+			// Создаем скрытый элемент для скачивания
+			const a = document.createElement('a');
+			a.style.display = 'none';
+			a.href = url;
+
+			// Задаем имя файла
+			a.download = 'page.html';
+
+			// Добавляем элемент в документ
+			document.body.appendChild(a);
+
+			// Эмулируем клик по ссылке
+			a.click();
+
+			// Очищаем URL после скачивания
+			window.URL.revokeObjectURL(url);
+
+			// Удаляем элемент из DOM
+			document.body.removeChild(a);
+		}
+
+		function menuEditIdF() {
+			const selectedId = menuPathList.at(-1);
+			const selectedEl = window[selectedId];
+
+			const menuEditIdTopInputEl = createEl({
+				appendTo: menuModalMain,
+				tag: "input",
+				props: { type: "number" },
+				listeners: [
+					{
+						eventName: "input",
+						callback: () => {
+							menuEditIdTopInputRangeEl.value = event.target.value;
+							selectedEl.style.top = `${menuEditIdTopInputRangeEl.value}px`;
 						},
-					],
-				});
+					},
+				],
+			});
 
-				const menuEditIdTopInputRangeEl = createEl({
-					appendTo: menuModalMain,
-					tag: "input",
-					listeners: [
-						{
-							eventName: "input",
-							callback: () => {
-								menuEditIdTopInputEl.value = event.target.value;
-								selectedEl.style.top = `${menuEditIdTopInputRangeEl.value}px`;
-							},
+			const menuEditIdTopInputRangeEl = createEl({
+				appendTo: menuModalMain,
+				tag: "input",
+				listeners: [
+					{
+						eventName: "input",
+						callback: () => {
+							menuEditIdTopInputEl.value = event.target.value;
+							selectedEl.style.top = `${menuEditIdTopInputRangeEl.value}px`;
 						},
-					],
-					props: { type: "range", min: 0, max: main.clientHeight },
-				});
+					},
+				],
+				props: { type: "range", min: 0, max: main.clientHeight },
+			});
 
-				const menuEditIdLeftInputEl = createEl({
-					appendTo: menuModalMain,
-					tag: "input",
-					props: { type: "number" },
-					listeners: [
-						{
-							eventName: "input",
-							callback: () => {
-								menuEditIdLeftInputRangeEl.value = event.target.value;
-								selectedEl.style.left = `${menuEditIdLeftInputRangeEl.value}px`;
-							},
+			const menuEditIdLeftInputEl = createEl({
+				appendTo: menuModalMain,
+				tag: "input",
+				props: { type: "number" },
+				listeners: [
+					{
+						eventName: "input",
+						callback: () => {
+							menuEditIdLeftInputRangeEl.value = event.target.value;
+							selectedEl.style.left = `${menuEditIdLeftInputRangeEl.value}px`;
 						},
-					],
-				});
+					},
+				],
+			});
 
-				const menuEditIdLeftInputRangeEl = createEl({
-					appendTo: menuModalMain,
-					tag: "input",
-					listeners: [
-						{
-							eventName: "input",
-							callback: () => {
-								menuEditIdLeftInputEl.value = event.target.value;
-								selectedEl.style.left = `${menuEditIdLeftInputRangeEl.value}px`;
-							},
+			const menuEditIdLeftInputRangeEl = createEl({
+				appendTo: menuModalMain,
+				tag: "input",
+				listeners: [
+					{
+						eventName: "input",
+						callback: () => {
+							menuEditIdLeftInputEl.value = event.target.value;
+							selectedEl.style.left = `${menuEditIdLeftInputRangeEl.value}px`;
 						},
-					],
-					props: { type: "range", min: 0, max: main.clientWidth },
-				});
-			}
+					},
+				],
+				props: { type: "range", min: 0, max: main.clientWidth },
+			});
+		}
 
-			function menuEditF() {
-				const menuEditSearchEl = createEl({
-					tag: "input",
-				});
+		function menuEditF() {
+			const menuEditSearchEl = createEl({
+				tag: "input",
+			});
 
-				menuEditSearchEl.addEventListener("input", () => {
-					mainIdsList.filter((id) => {
-						const idEl = menuModalMain.querySelector(`[data-menu-edit-el-id="${id}"]`);
-						const hasFoundEl = id.includes(menuEditSearchEl.value);
+			menuEditSearchEl.addEventListener("input", () => {
+				mainIdsList.filter((id) => {
+					const idEl = menuModalMain.querySelector(`[data-menu-edit-el-id="${id}"]`);
+					const hasFoundEl = id.includes(menuEditSearchEl.value);
 
-						if (!hasFoundEl && idEl.dataset.selected) {
-							delete idEl.dataset.selected;
-							idEl.setAttribute("style", "display: none;");
-						} else if (hasFoundEl) {
-							idEl.setAttribute("style", "");
-						}
-					});
-				});
-
-				const selectEditElAction = (event) => {
-					const elId = event.target.dataset.id;
-
-					if (elId) {
-						menuModalMain.querySelector(`[data-menuEditElId="${clickedElName}"]`).backgroundColor = "";
-
-						clickedElName = elId;
-
-						event.target.style.backgroundColor = "gray";
+					if (!hasFoundEl && idEl.dataset.selected) {
+						delete idEl.dataset.selected;
+						idEl.setAttribute("style", "display: none;");
+					} else if (hasFoundEl) {
+						idEl.setAttribute("style", "");
 					}
-				};
-
-				menuModalMain.addEventListener("click", selectEditElAction);
-
-				const menuEditFragment = getFragment();
-
-				menuEditFragment.append(menuEditSearchEl);
-
-				mainIdsList.forEach((id) => {
-					menuEditFragment.append(
-						createEl({
-							tag: "p",
-							datasets: [{ name: "menuEditElId", value: id }],
-							props: {
-								textContent: id,
-								onclick: (event) => {
-									const prevEl =
-										event.target.parentElement.querySelector('[data-selected="selected"]');
-
-									if (prevEl) {
-										prevEl.setAttribute("style", "");
-										delete prevEl.dataset.selected;
-									}
-
-									event.target.setAttribute("style", "background-color: gray;color:white;");
-									event.target.dataset.selected = "selected";
-								},
-							},
-						})
-					);
 				});
+			});
 
+			const selectEditElAction = (event) => {
+				const elId = event.target.dataset.id;
+
+				if (elId) {
+					menuModalMain.querySelector(`[data-menuEditElId="${clickedElName}"]`).backgroundColor = "";
+
+					clickedElName = elId;
+
+					event.target.style.backgroundColor = "gray";
+				}
+			};
+
+			menuModalMain.addEventListener("click", selectEditElAction);
+
+			const menuEditFragment = getFragment();
+
+			menuEditFragment.append(menuEditSearchEl);
+
+			mainIdsList.forEach((id) => {
 				menuEditFragment.append(
 					createEl({
-						tag: "button",
+						tag: "p",
+						datasets: [{ name: "menuEditElId", value: id }],
 						props: {
-							textContent: "Edit",
-							onclick: () => {
-								const selectedEl = menuModalMain.querySelector('[data-selected="selected"]');
+							textContent: id,
+							onclick: (event) => {
+								const prevEl =
+									event.target.parentElement.querySelector('[data-selected="selected"]');
 
-								if (!selectedEl) return;
+								if (prevEl) {
+									prevEl.setAttribute("style", "");
+									delete prevEl.dataset.selected;
+								}
 
-								const selectedId = selectedEl.dataset.menuEditElId;
-
-								menuModalMain.removeEventListener("click", selectEditElAction);
-
-								addMenuModalHeader(selectedId);
+								event.target.setAttribute("style", "background-color: gray;color:white;");
+								event.target.dataset.selected = "selected";
 							},
 						},
 					})
 				);
+			});
 
-				menuModalMain.replaceChildren(menuEditFragment);
+			menuEditFragment.append(
+				createEl({
+					tag: "button",
+					props: {
+						textContent: "Edit",
+						onclick: () => {
+							const selectedEl = menuModalMain.querySelector('[data-selected="selected"]');
+
+							if (!selectedEl) return;
+
+							const selectedId = selectedEl.dataset.menuEditElId;
+
+							menuModalMain.removeEventListener("click", selectEditElAction);
+
+							addMenuModalHeader(selectedId);
+						},
+					},
+				})
+			);
+
+			menuModalMain.replaceChildren(menuEditFragment);
+		}
+
+		function menuCreateF() {
+			const idInput = createEl({
+				tag: "input",
+				props: { id: "elIdInput" },
+			});
+
+			const createFragment = getFragment();
+
+			createFragment.append(idInput);
+
+			const onClickCreateEl = (event) => {
+				if (!event.target.dataset.el) return;
+
+				if (clickedElName) {
+					menuModalMain.querySelector(`[data-el="${clickedElName}"]`).style.backgroundColor = "";
+				}
+
+				clickedElName = event.target.textContent;
+				event.target.style.backgroundColor = "gray";
+			};
+
+			menuModalMain.addEventListener("click", onClickCreateEl);
+
+			CREATE_ELS_NAMES_LIST.forEach((tag) => {
+				createFragment.append(
+					createEl({ datasets: [{ value: tag, name: "el" }], props: { innerHTML: tag } })
+				);
+			});
+
+			createFragment.append(
+				createEl({
+					tag: "button",
+					props: {
+						textContent: "Create",
+						onclick: () => {
+							newId = elIdInput.value;
+
+							if (newId && clickedElName && !mainIdsList.includes(newId)) {
+								maxId += 1;
+								createEl({
+									tag: clickedElName,
+									appendTo: "#main",
+									props: {
+										innerHTML: clickedElName,
+										id: newId,
+									},
+									style: {
+										"z-index": maxId,
+										position: "absolute",
+										top: 0,
+										left: 0,
+									},
+								});
+								mainIdsList.push(newId);
+								menuModalMain.removeEventListener("click", onClickCreateEl);
+								closeMenuModal();
+							}
+						},
+					},
+				})
+			);
+
+			menuModalMain.append(createFragment);
+		}
+
+		function getPx(value) {
+			return `${parseFloat(value)}px`;
+		}
+
+		function closeMenuModal() {
+			menuModal.classList.remove("show");
+			menuPathList = [];
+			menuModalHeader.replaceChildren();
+			menuModalMain.replaceChildren();
+		}
+
+		function getFragment() {
+			return document.createDocumentFragment();
+		}
+
+		function callNewRouteF(route, routeWithId) {
+			const newRouteF = ROUTE_ACTIONS[route] ?? ROUTE_ACTIONS[`${routeWithId}/:id`];
+
+			newRouteF();
+		}
+
+		function addMenuModalHeader(path) {
+			const el = createEl({ props: { innerHTML: path } });
+
+			if (!menuPathList.length) {
+				button = createEl({
+					props: { innerHTML: "back", onclick: removeLastMenuModalHeader },
+					tag: "button",
+				});
+				menuModalHeader.append(button);
 			}
 
-			function menuCreateF() {
-				const idInput = createEl({
-					tag: "input",
-					props: { id: "elIdInput" },
-				});
+			const prevRoute = getMenuPath();
 
-				const createFragment = getFragment();
+			menuPathList.push(path);
+			const newRoute = getMenuPath();
 
-				createFragment.append(idInput);
+			menuModalHeader.append(el);
 
-				const onClickCreateEl = (event) => {
-					if (!event.target.dataset.el) return;
+			menuModalMain.replaceChildren();
 
-					if (clickedElName) {
-						menuModalMain.querySelector(`[data-el="${clickedElName}"]`).style.backgroundColor = "";
-					}
+			callNewRouteF(newRoute, prevRoute);
+		}
 
-					clickedElName = event.target.textContent;
-					event.target.style.backgroundColor = "gray";
-				};
+		function removeLastMenuModalHeader() {
+			const prevRoute = getMenuPath();
 
-				menuModalMain.addEventListener("click", onClickCreateEl);
+			menuPathList.pop();
 
-				CREATE_ELS_NAMES_LIST.forEach((tag) => {
-					createFragment.append(
-						createEl({ datasets: [{ value: tag, name: "el" }], props: { innerHTML: tag } })
-					);
-				});
+			const newRoute = getMenuPath();
 
-				createFragment.append(
+			menuModalHeader.removeChild(menuModalHeader.lastElementChild);
+			menuModalMain.replaceChildren();
+
+			callNewRouteF(newRoute, prevRoute);
+
+			if (!menuPathList.length) {
+				closeMenuModal();
+			}
+		}
+
+		function getMenuSection({ section = {}, pathIndex = 1 }) {
+			if (!section.routes) return section;
+
+			const path = menuPathList[pathIndex];
+			const isLastMenuPath = pathIndex === menuPathList.length - 1;
+
+			if (isLastMenuPath) return section;
+
+			const currentSection = section.sections.find((childrenSection) => compare(childrenSection.name, path));
+
+			if (currentSection) {
+				return getMenuSection({ section: currentSection, index: pathIndex + 1 });
+			}
+		}
+
+		function menuF() {
+			const mainButtons = getFragment();
+
+			["create", "edit", "delete", "download"].forEach((buttonName) => {
+				mainButtons.append(
 					createEl({
-						tag: "button",
 						props: {
-							textContent: "Create",
+							innerHTML: buttonName,
 							onclick: () => {
-								newId = elIdInput.value;
-
-								if (newId && clickedElName && !mainIdsList.includes(newId)) {
-									maxId += 1;
-									createEl({
-										tag: clickedElName,
-										appendTo: "#main",
-										props: {
-											innerHTML: clickedElName,
-											id: newId,
-										},
-										style: {
-											"z-index": maxId,
-											position: "absolute",
-											top: 0,
-											left: 0,
-										},
-									});
-									mainIdsList.push(newId);
-									menuModalMain.removeEventListener("click", onClickCreateEl);
+								if (buttonName === 'download') {
 									closeMenuModal();
+									downloadHTML()
+								} else {
+									addMenuModalHeader(buttonName);
 								}
 							},
 						},
 					})
 				);
+			});
 
-				menuModalMain.append(createFragment);
+			menuModalMain.append(mainButtons);
+
+			menuModal.classList.add("show");
+			menuModal.style.zIndex = maxId + 1;
+		}
+
+		function openMenuModal() {
+			addMenuModalHeader("menu");
+		}
+
+		function getCellInfo(element) {
+			info = {
+				top: parseFloat(element.style.top),
+				left: parseFloat(element.style.left),
+				width: parseFloat(element.style.width),
+				height: parseFloat(element.style.height),
+			};
+
+			return {
+				...info,
+				bottom: info.top + info.height,
+				right: info.left + info.width,
+				id: +element.id,
+			};
+		}
+
+		function createEl({ tag = "div", datasets, style = {}, appendTo = "", props, listeners }) {
+			const el = document.createElement(tag);
+
+			if (listeners) {
+				listeners.forEach(({ eventName, callback }) => el.addEventListener(eventName, callback));
 			}
-
-			function getPx(value) {
-				return `${parseFloat(value)}px`;
-			}
-
-			function closeMenuModal() {
-				menuModal.classList.remove("show");
-				menuPathList = [];
-				menuModalHeader.replaceChildren();
-				menuModalMain.replaceChildren();
-			}
-
-			function getFragment() {
-				return document.createDocumentFragment();
-			}
-
-			function callNewRouteF(route, routeWithId) {
-				const newRouteF = ROUTE_ACTIONS[route] ?? ROUTE_ACTIONS[`${routeWithId}/:id`];
-
-				newRouteF();
-			}
-
-			function addMenuModalHeader(path) {
-				const el = createEl({ props: { innerHTML: path } });
-
-				if (!menuPathList.length) {
-					button = createEl({
-						props: { innerHTML: "back", onclick: removeLastMenuModalHeader },
-						tag: "button",
-					});
-					menuModalHeader.append(button);
-				}
-
-				const prevRoute = getMenuPath();
-
-				menuPathList.push(path);
-				const newRoute = getMenuPath();
-
-				menuModalHeader.append(el);
-
-				menuModalMain.replaceChildren();
-
-				callNewRouteF(newRoute, prevRoute);
-			}
-
-			function removeLastMenuModalHeader() {
-				const prevRoute = getMenuPath();
-
-				menuPathList.pop();
-
-				const newRoute = getMenuPath();
-
-				menuModalHeader.removeChild(menuModalHeader.lastElementChild);
-				menuModalMain.replaceChildren();
-
-				callNewRouteF(newRoute, prevRoute);
-
-				if (!menuPathList.length) {
-					closeMenuModal();
-				}
-			}
-
-			function getMenuSection({ section = {}, pathIndex = 1 }) {
-				if (!section.routes) return section;
-
-				const path = menuPathList[pathIndex];
-				const isLastMenuPath = pathIndex === menuPathList.length - 1;
-
-				if (isLastMenuPath) return section;
-
-				const currentSection = section.sections.find((childrenSection) => compare(childrenSection.name, path));
-
-				if (currentSection) {
-					return getMenuSection({ section: currentSection, index: pathIndex + 1 });
-				}
-			}
-
-			function menuF() {
-				const mainButtons = getFragment();
-
-				["create", "edit", "delete"].forEach((buttonName) => {
-					mainButtons.append(
-						createEl({
-							props: {
-								innerHTML: buttonName,
-								onclick: () => {
-									addMenuModalHeader(buttonName);
-								},
-							},
-						})
-					);
+			if (datasets) datasets.forEach(({ value, name }) => (el.dataset[name] = value));
+			if (style) {
+				Object.keys(style).forEach((styleKey) => {
+					el.style[styleKey] = style[styleKey];
 				});
-
-				menuModalMain.append(mainButtons);
-
-				menuModal.classList.add("show");
-				menuModal.style.zIndex = maxId + 1;
 			}
-
-			function openMenuModal() {
-				addMenuModalHeader("menu");
-			}
-
-			function getCellInfo(element) {
-				info = {
-					top: parseFloat(element.style.top),
-					left: parseFloat(element.style.left),
-					width: parseFloat(element.style.width),
-					height: parseFloat(element.style.height),
-				};
-
-				return {
-					...info,
-					bottom: info.top + info.height,
-					right: info.left + info.width,
-					id: +element.id,
-				};
-			}
-
-			function createEl({ tag = "div", datasets, style = {}, appendTo = "", props, listeners }) {
-				const el = document.createElement(tag);
-
-				if (listeners) {
-					listeners.forEach(({ eventName, callback }) => el.addEventListener(eventName, callback));
-				}
-				if (datasets) datasets.forEach(({ value, name }) => (el.dataset[name] = value));
-				if (style) {
-					Object.keys(style).forEach((styleKey) => {
-						el.style[styleKey] = style[styleKey];
-					});
-				}
-				if (appendTo) {
-					if (typeof appendTo === "string") {
-						document.querySelector(appendTo).append(el);
-					} else {
-						appendTo.append(el);
-					}
-				}
-				if (props) {
-					Object.keys(props).forEach((propName) => {
-						el[propName] = props[propName];
-					});
-				}
-				return el;
-			}
-
-			function rangeArray({ from = 0, to = 0, before = "", handler }) {
-				const newArray = [];
-				for (let index = from; index <= to; index++) {
-					let value = `${before}${index}`;
-					handler?.(value, index);
-					newArray.push(value);
-				}
-				return newArray;
-			}
-
-			function compare(id1, id2) {
-				return String(id1) === String(id2);
-			}
-
-			function log() {
-				for (var i = 0; i < arguments.length; i++) {
-					console.log(arguments[i]);
+			if (appendTo) {
+				if (typeof appendTo === "string") {
+					document.querySelector(appendTo).append(el);
+				} else {
+					appendTo.append(el);
 				}
 			}
-		</script>
-	</body>
+			if (props) {
+				Object.keys(props).forEach((propName) => {
+					el[propName] = props[propName];
+				});
+			}
+			return el;
+		}
+
+		function rangeArray({ from = 0, to = 0, before = "", handler }) {
+			const newArray = [];
+			for (let index = from; index <= to; index++) {
+				let value = `${before}${index}`;
+				handler?.(value, index);
+				newArray.push(value);
+			}
+			return newArray;
+		}
+
+		function compare(id1, id2) {
+			return String(id1) === String(id2);
+		}
+
+		function log() {
+			for (var i = 0; i < arguments.length; i++) {
+				console.log(arguments[i]);
+			}
+		}
+	</script>
+</body>
+
 </html>
