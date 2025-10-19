@@ -406,9 +406,9 @@
 
 			if (!menuPathList.length) {
 				closeMenuModal();
+			} else {
+				callNewRouteF(newRoute, prevRoute);
 			}
-
-			callNewRouteF(newRoute, prevRoute);
 		}
 
 		function getMenuSection({ section = {}, pathIndex = 1 }) {
