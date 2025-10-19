@@ -404,11 +404,11 @@
 			menuModalHeader.removeChild(menuModalHeader.lastElementChild);
 			menuModalMain.replaceChildren();
 
-			callNewRouteF(newRoute, prevRoute);
-
 			if (!menuPathList.length) {
 				closeMenuModal();
 			}
+
+			callNewRouteF(newRoute, prevRoute);
 		}
 
 		function getMenuSection({ section = {}, pathIndex = 1 }) {
