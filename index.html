@@ -682,115 +682,159 @@ class CustomLabel {
 /**
  * Оптимизированный селектор с виртуальным скроллом
  */
-class CustomSelector extends CustomLabel {
-  static optionSelectedClassName = 'option-selected';
-  static optionDisabledClassName = 'option-disabled';
+/**
+ * Оптимизированный Селектор с виртуализацией и выпадающим списком
+ * Наследует CustomLabel для отображения заголовка и ошибок
+ */
+export class CustomSelector extends CustomLabel {
   static className = 'custom-selector-container';
 
   constructor(options = {}) {
-    // 1. Сначала вызываем родителя (он создаст this.el)
+    // 1. Инициализация родительского лейбла
     super({ label: options.label, isRequired: options.isRequired });
 
-    // 2. Инициализируем свойства
+    // 2. Конфигурация
     const {
-      id = `sel-${Math.random().toString(36).substring(2, 11)}`,
       options: items = [],
-      height = '300px',
-      isMulti = true,
-      onchange,
+      height = '250px',
+      isMulti = false,
       hasSearch = true,
-      itemHeight = 40
+      itemHeight = 40,
+      onchange
     } = options;
 
-    this.id = id;
     this.allOptions = items;
     this.filteredOptions = [...items];
     this.selectedValues = new Set();
     this.isMulti = isMulti;
-    this.onchange = onchange;
+    this.isRequired = options.isRequired;
     this.itemHeight = itemHeight;
     this.visibleCount = Math.ceil(parseInt(height) / itemHeight) + 1;
+    this.onchange = onchange;
+    this.isOpen = false;
 
-    // 3. Создаем элементы (Синхронно!)
+    // 3. Создание DOM-структуры
     this.els = {
       container: document.createElement('div'),
       header: document.createElement('div'),
+      selectedText: document.createElement('span'),
+      dropdown: document.createElement('div'),
       search: hasSearch ? document.createElement('input') : null,
       list: document.createElement('ul'),
       spacer: document.createElement('div'),
-      pool: []
+      pool: [] // Пул для виртуальных строк
     };
 
     this.setupDOM();
+    this.setupEvents();
+    this.updateHeaderText();
   }
 
-  // Убрали async/await, так как для создания DOM он не нужен и вреден в конструкторе
   setupDOM() {
-    const { container, header, search, list, spacer, pool } = this.els;
+    const { container, header, selectedText, dropdown, search, list, spacer, pool } = this.els;
 
-    container.id = this.id;
     container.className = CustomSelector.className;
-    
-    // Базовые стили контейнера
-    Object.assign(container.style, { display: 'flex', flexDirection: 'column', gap: '4px' });
-
-    // Стили списка
-    Object.assign(list.style, {
-      position: 'relative',
-      overflowY: 'auto',
-      border: '1px solid #333',
-      height: `${(this.visibleCount - 1) * this.itemHeight}px`,
-      padding: '0',
-      margin: '0',
-      listStyle: 'none'
+    Object.assign(container.style, { 
+      display: 'flex', flexDirection: 'column', position: 'relative', width: '100%', fontFamily: 'inherit' 
     });
 
-    // Стили распорки
-    Object.assign(spacer.style, {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: -1,
-      pointerEvents: 'none'
+    // Хедер (кнопка открытия)
+    Object.assign(header.style, {
+      padding: '8px 12px', border: '1px solid #ccc', borderRadius: '4px',
+      cursor: 'pointer', backgroundColor: '#fff', display: 'flex',
+      alignItems: 'center', minHeight: '38px', boxSizing: 'border-box'
+    });
+
+    selectedText.style.cssText = 'white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;';
+    header.append(selectedText);
+
+    // Выпадающий блок
+    Object.assign(dropdown.style, {
+      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 1000,
+      backgroundColor: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+      borderRadius: '4px', marginTop: '4px', display: 'none', overflow: 'hidden',
+      border: '1px solid #ddd'
     });
 
     if (search) {
+      Object.assign(search.style, {
+        width: '100%', boxSizing: 'border-box', padding: '10px',
+        border: 'none', borderBottom: '1px solid #eee', outline: 'none'
+      });
       search.placeholder = 'Поиск...';
-      search.addEventListener('input', (e) => this.handleSearch(e.target.value));
-      header.append(search);
+      dropdown.append(search);
     }
 
-    // Создаем пул строк
+    // Список с виртуальным скроллом
+    Object.assign(list.style, {
+      position: 'relative', overflowY: 'auto', margin: '0', padding: '0',
+      listStyle: 'none', height: `${(this.visibleCount - 1) * this.itemHeight}px`
+    });
+
+    // Распорка для имитации высоты всех данных
+    Object.assign(spacer.style, { position: 'absolute', top: 0, left: 0, right: 0, zIndex: -1 });
+
+    // Создание пула видимых строк
     for (let i = 0; i < this.visibleCount; i++) {
       const li = document.createElement('li');
       Object.assign(li.style, {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        height: `${this.itemHeight}px`,
-        display: 'flex',
-        alignItems: 'center',
-        padding: '0 12px',
-        cursor: 'pointer',
-        boxSizing: 'border-box',
-        borderBottom: '1px solid #eee',
-        willChange: 'transform',
-        backgroundColor: '#fff'
+        position: 'absolute', left: 0, right: 0, height: `${this.itemHeight}px`,
+        display: 'flex', alignItems: 'center', padding: '0 12px', cursor: 'pointer',
+        boxSizing: 'border-box', borderBottom: '1px solid #f9f9f9', willChange: 'transform'
       });
       pool.push(li);
       list.append(li);
     }
 
     list.append(spacer);
+    dropdown.append(list);
     
-    // ВАЖНО: this.el — это span из CustomLabel. Кладем его первым.
-    container.append(this.el, header, list);
+    // Сборка всего компонента (this.el — это лейбл от родителя)
+    container.append(this.el, header, dropdown);
+  }
 
-    list.addEventListener('scroll', () => requestAnimationFrame(() => this.updateVirtualList()));
-    list.addEventListener('click', (e) => this.handleItemClick(e));
+  setupEvents() {
+    this.els.header.onclick = () => this.toggle();
+    
+    // Закрытие по клику вне области селектора
+    document.addEventListener('click', (e) => {
+      if (!this.els.container.contains(e.target)) this.close();
+    });
 
+    // Рендер виртуального списка при скролле
+    this.els.list.onscroll = () => requestAnimationFrame(() => this.updateVirtualList());
+    
+    // Обработка выбора
+    this.els.list.onclick = (e) => {
+      const li = e.target.closest('li');
+      if (li && li.style.display !== 'none') this.handleSelect(li._val);
+    };
+
+    if (this.els.search) {
+      this.els.search.oninput = (e) => this.handleSearch(e.target.value);
+    }
+  }
+
+  toggle() { this.isOpen ? this.close() : this.open(); }
+
+  open() {
+    this.isOpen = true;
+    this.els.dropdown.style.display = 'block';
     this.refreshFullHeight();
+    this.updateVirtualList();
+    if (this.els.search) this.els.search.focus();
+  }
+
+  close() {
+    this.isOpen = false;
+    this.els.dropdown.style.display = 'none';
+  }
+
+  handleSearch(text) {
+    const term = text.toLowerCase();
+    this.filteredOptions = this.allOptions.filter(o => o.name.toLowerCase().includes(term));
+    this.refreshFullHeight();
+    this.els.list.scrollTop = 0;
     this.updateVirtualList();
   }
 
@@ -799,68 +843,66 @@ class CustomSelector extends CustomLabel {
   }
 
   updateVirtualList() {
-    const { list, pool } = this.els;
-    const scrollTop = list.scrollTop;
-    const startIndex = Math.floor(scrollTop / this.itemHeight);
+    const startIndex = Math.floor(this.els.list.scrollTop / this.itemHeight);
     
-    pool.forEach((li, i) => {
-      const dataIndex = startIndex + i;
-      const data = this.filteredOptions[dataIndex];
-
+    this.els.pool.forEach((li, i) => {
+      const index = startIndex + i;
+      const data = this.filteredOptions[index];
       if (data) {
-        li.style.transform = `translateY(${dataIndex * this.itemHeight}px)`;
         li.style.display = 'flex';
+        li.style.transform = `translateY(${index * this.itemHeight}px)`;
         li.textContent = data.name;
-        // Сохраняем ID в свойство объекта для скорости
-        li._val = data.value ?? data.id;
-        
+        li._val = data.value ?? data.id; // Кэшируем значение для обработчика клика
         const isSelected = this.selectedValues.has(li._val);
         li.style.backgroundColor = isSelected ? '#e3f2fd' : '#fff';
-        li.classList.toggle(CustomSelector.optionSelectedClassName, isSelected);
       } else {
         li.style.display = 'none';
       }
     });
   }
 
-  handleItemClick(e) {
-    const li = e.target.closest('li');
-    if (!li || li.style.display === 'none') return;
-
-    const val = li._val;
-
+  handleSelect(val) {
     if (this.isMulti) {
       this.selectedValues.has(val) ? this.selectedValues.delete(val) : this.selectedValues.add(val);
     } else {
       this.selectedValues.clear();
       this.selectedValues.add(val);
+      this.close(); // Сворачиваем после выбора в одиночном режиме
     }
-
-    this.updateVirtualList();
-    if (this.onchange) this.onchange(Array.from(this.selectedValues));
-  }
-
-  handleSearch(text) {
-    const term = text.toLowerCase();
-    this.filteredOptions = this.allOptions.filter(opt => 
-      opt.name.toLowerCase().includes(term)
-    );
     
-    this.refreshFullHeight();
-    this.els.list.scrollTop = 0;
+    this.updateHeaderText();
+    if (this.isRequired) this.validate();
+    if (this.onchange) this.onchange(Array.from(this.selectedValues));
     this.updateVirtualList();
   }
 
-  // Переопределяем геттер, чтобы возвращать контейнер селектора, а не только лейбл
-  get element() {
-    return this.els.container;
+  updateHeaderText() {
+    const count = this.selectedValues.size;
+    if (count === 0) {
+      this.els.selectedText.textContent = 'Выберите...';
+    } else {
+      this.els.selectedText.textContent = this.isMulti 
+        ? `Выбрано: ${count}` 
+        : this.allOptions.find(o => (o.value ?? o.id) == Array.from(this.selectedValues)[0])?.name;
+    }
   }
 
-  getSelected() {
-    return Array.from(this.selectedValues);
+  validate(msg = 'Обязательное поле') {
+    const ok = !this.isRequired || this.selectedValues.size > 0;
+    this.setError(ok ? null : msg);
+    this.els.header.style.borderColor = ok ? '#ccc' : '#d32f2f';
+    return ok;
   }
+
+  get element() { return this.els.container; }
+  getSelected() { return Array.from(this.selectedValues); }
 }
 
+
+
+
+
+		
 class CustomTextarea extends CustomLabel {
   static className = 'custom-textarea-container';
 
