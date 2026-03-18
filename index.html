@@ -607,6 +607,9 @@ class CustomButton {
   }
 }
 
+
+
+		
 class CustomLabel {
   static errorClass = 'custom-error';
   static className = 'custom-label';
@@ -621,41 +624,60 @@ class CustomLabel {
   init() {
     this.el.className = CustomLabel.className;
     this.el.textContent = this.baseText;
-    // Используем скрытое свойство вместо dataset для скорости (нет парсинга строк)
     this.el._baseText = this.baseText; 
   }
 
-  // Геттер для единообразия с кнопкой и модалкой
-  get element() {
-    return this.el;
+  /**
+   * Метод экземпляра — теперь это основной способ
+   */
+  setError(errorText) {
+    const hasError = !!errorText;
+    const container = this.el.parentElement;
+
+    // 1. Управляем классом на родителе (если он есть)
+    if (container) {
+      container.classList.toggle(CustomLabel.errorClass, hasError);
+    }
+
+    // 2. Обновляем текст самого лейбла
+    if (errorText !== undefined) {
+      const base = this.el._baseText;
+      this.el.textContent = hasError ? `${base} — ${errorText}` : base;
+    }
   }
 
   /**
-   * Оптимизированное управление ошибкой
-   * @param {HTMLElement} containerEl - Контейнер, где лежит label
-   * @param {Object} params - Текст ошибки или флаг состояния
+   * Статический метод (рефакторинг)
+   * Теперь он не ищет селектором, а ожидает ссылку на инстанс или элемент
    */
-  static setError(containerEl, { errorText, hasError } = {}) {
-    if (!(containerEl instanceof HTMLElement)) return;
-
-    const labelEl = containerEl.querySelector(`.${CustomLabel.className}`);
-    if (!labelEl) return;
-
-    // 1. Определяем финальное состояние ошибки (Boolean)
-    const shouldShowError = errorText !== undefined ? !!errorText : !!hasError;
-
-    // 2. Атомарное обновление класса контейнера
-    containerEl.classList.toggle(CustomLabel.errorClass, shouldShowError);
-
-    // 3. Умное обновление текста (только если передали текст ошибки)
-    if (errorText !== undefined) {
-      // Всегда берем чистый исходный текст из кэша элемента
-      const base = labelEl._baseText || labelEl.textContent;
-      labelEl.textContent = shouldShowError ? `${base} — ${errorText}` : base;
+  static setError(instance, errorText) {
+    // Если передали инстанс класса
+    if (instance instanceof CustomLabel) {
+      instance.setError(errorText);
+      return;
     }
+    // Если передали просто HTMLElement (старая логика на крайний случай)
+    if (instance instanceof HTMLElement) {
+      const labelEl = instance.classList.contains(CustomLabel.className) 
+        ? instance 
+        : instance.querySelector(`.${CustomLabel.className}`);
+      
+      if (labelEl) {
+        const base = labelEl._baseText || labelEl.textContent;
+        const hasError = !!errorText;
+        instance.classList.toggle(CustomLabel.errorClass, hasError);
+        labelEl.textContent = hasError ? `${base} — ${errorText}` : base;
+      }
+    }
+  }
+
+  get element() {
+    return this.el;
   }
 }
 
+
+		
 
 /**
  * Оптимизированный селектор с виртуальным скроллом
@@ -666,61 +688,72 @@ class CustomSelector extends CustomLabel {
   static className = 'custom-selector-container';
 
   constructor(options = {}) {
+    // 1. Сначала вызываем родителя (он создаст this.el)
+    super({ label: options.label, isRequired: options.isRequired });
+
+    // 2. Инициализируем свойства
     const {
-      id = `sel-${Math.random().toString(36).substr(2, 9)}`,
+      id = `sel-${Math.random().toString(36).substring(2, 11)}`,
       options: items = [],
       height = '300px',
       isMulti = true,
-      label = '',
-      isRequired = false,
       onchange,
       hasSearch = true,
-      itemHeight = 40 // Фиксированная высота строки для вирт. скролла
+      itemHeight = 40
     } = options;
 
-    super({ label, isRequired });
-
-    // Состояние
     this.id = id;
-    this.allOptions = items; 
+    this.allOptions = items;
     this.filteredOptions = [...items];
     this.selectedValues = new Set();
     this.isMulti = isMulti;
     this.onchange = onchange;
-    
-    // Параметры виртуализации
     this.itemHeight = itemHeight;
     this.visibleCount = Math.ceil(parseInt(height) / itemHeight) + 1;
 
-    // Элементы
+    // 3. Создаем элементы (Синхронно!)
     this.els = {
       container: document.createElement('div'),
       header: document.createElement('div'),
       search: hasSearch ? document.createElement('input') : null,
       list: document.createElement('ul'),
-      spacer: document.createElement('div'), // Распорка для высоты
-      pool: [] // Пул видимых строк
+      spacer: document.createElement('div'),
+      pool: []
     };
 
-    this.init();
+    this.setupDOM();
   }
 
-  async init() {
-    const { container, header, search, list, spacer } = this.els;
+  // Убрали async/await, так как для создания DOM он не нужен и вреден в конструкторе
+  setupDOM() {
+    const { container, header, search, list, spacer, pool } = this.els;
 
     container.id = this.id;
     container.className = CustomSelector.className;
+    
+    // Базовые стили контейнера
+    Object.assign(container.style, { display: 'flex', flexDirection: 'column', gap: '4px' });
 
-    // 1. Настройка структуры и стилей (Batch)
-    await Promise.all([
-      setStyleToEl({ display: 'flex', flexDirection: 'column', gap: '4px' }, container),
-      setStyleToEl({ 
-        position: 'relative', overflowY: 'auto', border: '1px solid #333', 
-        height: `${this.visibleCount * this.itemHeight}px`, padding: '0', margin: '0',
-        listStyle: 'none'
-      }, list),
-      setStyleToEl({ position: 'absolute', top: 0, left: 0, right: 0, zIndex: -1 }, spacer)
-    ]);
+    // Стили списка
+    Object.assign(list.style, {
+      position: 'relative',
+      overflowY: 'auto',
+      border: '1px solid #333',
+      height: `${(this.visibleCount - 1) * this.itemHeight}px`,
+      padding: '0',
+      margin: '0',
+      listStyle: 'none'
+    });
+
+    // Стили распорки
+    Object.assign(spacer.style, {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: -1,
+      pointerEvents: 'none'
+    });
 
     if (search) {
       search.placeholder = 'Поиск...';
@@ -728,23 +761,32 @@ class CustomSelector extends CustomLabel {
       header.append(search);
     }
 
-    // 2. Создаем пул DOM-узлов (только столько, сколько влезет в экран)
-    for (let i = 0; i < this.visibleCount + 1; i++) {
+    // Создаем пул строк
+    for (let i = 0; i < this.visibleCount; i++) {
       const li = document.createElement('li');
-      setStyleToEl({
-        position: 'absolute', left: 0, right: 0, height: `${this.itemHeight}px`,
-        display: 'flex', alignItems: 'center', padding: '0 12px', cursor: 'pointer',
-        boxSizing: 'border-box', borderBottom: '1px solid #eee', willChange: 'transform'
-      }, li);
-      
-      this.els.pool.push(li);
+      Object.assign(li.style, {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        height: `${this.itemHeight}px`,
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 12px',
+        cursor: 'pointer',
+        boxSizing: 'border-box',
+        borderBottom: '1px solid #eee',
+        willChange: 'transform',
+        backgroundColor: '#fff'
+      });
+      pool.push(li);
       list.append(li);
     }
 
     list.append(spacer);
-    container.append(this.el, header, list); // this.el - это Label из super()
+    
+    // ВАЖНО: this.el — это span из CustomLabel. Кладем его первым.
+    container.append(this.el, header, list);
 
-    // 3. События
     list.addEventListener('scroll', () => requestAnimationFrame(() => this.updateVirtualList()));
     list.addEventListener('click', (e) => this.handleItemClick(e));
 
@@ -752,17 +794,16 @@ class CustomSelector extends CustomLabel {
     this.updateVirtualList();
   }
 
-  // Обновляем высоту "фантомного" скролла
   refreshFullHeight() {
     this.els.spacer.style.height = `${this.filteredOptions.length * this.itemHeight}px`;
   }
 
-  // Главная логика виртуализации
   updateVirtualList() {
-    const scrollTop = this.els.list.scrollTop;
+    const { list, pool } = this.els;
+    const scrollTop = list.scrollTop;
     const startIndex = Math.floor(scrollTop / this.itemHeight);
     
-    this.els.pool.forEach((li, i) => {
+    pool.forEach((li, i) => {
       const dataIndex = startIndex + i;
       const data = this.filteredOptions[dataIndex];
 
@@ -770,12 +811,12 @@ class CustomSelector extends CustomLabel {
         li.style.transform = `translateY(${dataIndex * this.itemHeight}px)`;
         li.style.display = 'flex';
         li.textContent = data.name;
-        li.dataset.value = data.value ?? data.id;
+        // Сохраняем ID в свойство объекта для скорости
+        li._val = data.value ?? data.id;
         
-        // Подсветка выбранного
-        const isSelected = this.selectedValues.has(li.dataset.value);
-        li.classList.toggle(CustomSelector.optionSelectedClassName, isSelected);
+        const isSelected = this.selectedValues.has(li._val);
         li.style.backgroundColor = isSelected ? '#e3f2fd' : '#fff';
+        li.classList.toggle(CustomSelector.optionSelectedClassName, isSelected);
       } else {
         li.style.display = 'none';
       }
@@ -786,7 +827,7 @@ class CustomSelector extends CustomLabel {
     const li = e.target.closest('li');
     if (!li || li.style.display === 'none') return;
 
-    const val = li.dataset.value;
+    const val = li._val;
 
     if (this.isMulti) {
       this.selectedValues.has(val) ? this.selectedValues.delete(val) : this.selectedValues.add(val);
@@ -806,15 +847,15 @@ class CustomSelector extends CustomLabel {
     );
     
     this.refreshFullHeight();
-    this.els.list.scrollTop = 0; // Сброс скролла при поиске
+    this.els.list.scrollTop = 0;
     this.updateVirtualList();
   }
 
+  // Переопределяем геттер, чтобы возвращать контейнер селектора, а не только лейбл
   get element() {
     return this.els.container;
   }
 
-  // Публичный метод для получения данных
   getSelected() {
     return Array.from(this.selectedValues);
   }
