@@ -519,6 +519,544 @@
 				console.log(arguments[i]);
 			}
 		}
+
+
+
+		const styleQueue = new Map();
+let isScheduled = false;
+let framePromise = null;
+
+const setStyleToEl = (style, el) => {
+  if (!(el instanceof Element) || !style || typeof style !== 'object') {
+    return Promise.resolve();
+  }
+
+  // Обновляем очередь задач для конкретного элемента
+  const currentPending = styleQueue.get(el) || {};
+  styleQueue.set(el, { ...currentPending, ...style });
+
+  // Создаем один промис на весь кадр анимации
+  if (!isScheduled) {
+    isScheduled = true;
+    framePromise = new Promise((resolve) => {
+      requestAnimationFrame(() => {
+        // Применяем все накопленные стили разом
+        styleQueue.forEach((styles, element) => {
+          Object.assign(element.style, styles);
+        });
+        
+        styleQueue.clear();
+        isScheduled = false;
+        resolve(); // Сигнализируем о завершении записи в DOM
+      });
+    });
+  }
+
+  return framePromise;
+};
+
+
+const prepareClassNames = (classNames = []) => classNames.filter(Boolean).join(' ');
+
+class CustomButton {
+  static errorClass = 'error';
+  static baseClass = 'custom-button';
+
+  constructor({ text = '', className = '', onClick } = {}) {
+    this.el = document.createElement('button');
+    this._onClick = onClick; // Сохраняем ссылку для корректного удаления
+
+    this.init(text, className);
+  }
+
+  init(text, className) {
+    // Массовая установка классов и текста
+    this.el.className = prepareClassNames([CustomButton.baseClass, className])
+    this.el.textContent = text;
+
+    if (typeof this._onClick === 'function') {
+      this.el.addEventListener('click', this._onClick);
+    }
+  }
+
+  // Геттер для удобного доступа
+  get element() {
+    return this.el;
+  }
+
+  // Метод управления состоянием ошибки
+  setError(hasError) {
+    this.el.classList.toggle(CustomButton.errorClass, !!hasError);
+  }
+
+  /**
+   * Полная очистка ресурсов
+   */
+  destroy() {
+    // 1. Удаляем обработчик события
+    if (typeof this._onClick === 'function') {
+      this.el.removeEventListener('click', this._onClick);
+    }
+
+    // 2. Удаляем элемент из DOM, если он там был
+    this.el.remove();
+
+    // 3. Зануляем ссылки для сборщика мусора (GC)
+    this.el = null;
+    this._onClick = null;
+  }
+}
+
+class CustomLabel {
+  static errorClass = 'custom-error';
+  static className = 'custom-label';
+
+  constructor({ label = '', isRequired = false } = {}) {
+    this.el = document.createElement('span');
+    this.baseText = `${label}${isRequired ? ' (Обязательное поле)' : ''}`;
+    
+    this.init();
+  }
+
+  init() {
+    this.el.className = CustomLabel.className;
+    this.el.textContent = this.baseText;
+    // Используем скрытое свойство вместо dataset для скорости (нет парсинга строк)
+    this.el._baseText = this.baseText; 
+  }
+
+  // Геттер для единообразия с кнопкой и модалкой
+  get element() {
+    return this.el;
+  }
+
+  /**
+   * Оптимизированное управление ошибкой
+   * @param {HTMLElement} containerEl - Контейнер, где лежит label
+   * @param {Object} params - Текст ошибки или флаг состояния
+   */
+  static setError(containerEl, { errorText, hasError } = {}) {
+    if (!(containerEl instanceof HTMLElement)) return;
+
+    const labelEl = containerEl.querySelector(`.${CustomLabel.className}`);
+    if (!labelEl) return;
+
+    // 1. Определяем финальное состояние ошибки (Boolean)
+    const shouldShowError = errorText !== undefined ? !!errorText : !!hasError;
+
+    // 2. Атомарное обновление класса контейнера
+    containerEl.classList.toggle(CustomLabel.errorClass, shouldShowError);
+
+    // 3. Умное обновление текста (только если передали текст ошибки)
+    if (errorText !== undefined) {
+      // Всегда берем чистый исходный текст из кэша элемента
+      const base = labelEl._baseText || labelEl.textContent;
+      labelEl.textContent = shouldShowError ? `${base} — ${errorText}` : base;
+    }
+  }
+}
+
+
+/**
+ * Оптимизированный селектор с виртуальным скроллом
+ */
+class CustomSelector extends CustomLabel {
+  static optionSelectedClassName = 'option-selected';
+  static optionDisabledClassName = 'option-disabled';
+  static className = 'custom-selector-container';
+
+  constructor(options = {}) {
+    const {
+      id = `sel-${Math.random().toString(36).substr(2, 9)}`,
+      options: items = [],
+      height = '300px',
+      isMulti = true,
+      label = '',
+      isRequired = false,
+      onchange,
+      hasSearch = true,
+      itemHeight = 40 // Фиксированная высота строки для вирт. скролла
+    } = options;
+
+    super({ label, isRequired });
+
+    // Состояние
+    this.id = id;
+    this.allOptions = items; 
+    this.filteredOptions = [...items];
+    this.selectedValues = new Set();
+    this.isMulti = isMulti;
+    this.onchange = onchange;
+    
+    // Параметры виртуализации
+    this.itemHeight = itemHeight;
+    this.visibleCount = Math.ceil(parseInt(height) / itemHeight) + 1;
+
+    // Элементы
+    this.els = {
+      container: document.createElement('div'),
+      header: document.createElement('div'),
+      search: hasSearch ? document.createElement('input') : null,
+      list: document.createElement('ul'),
+      spacer: document.createElement('div'), // Распорка для высоты
+      pool: [] // Пул видимых строк
+    };
+
+    this.init();
+  }
+
+  async init() {
+    const { container, header, search, list, spacer } = this.els;
+
+    container.id = this.id;
+    container.className = CustomSelector.className;
+
+    // 1. Настройка структуры и стилей (Batch)
+    await Promise.all([
+      setStyleToEl({ display: 'flex', flexDirection: 'column', gap: '4px' }, container),
+      setStyleToEl({ 
+        position: 'relative', overflowY: 'auto', border: '1px solid #333', 
+        height: `${this.visibleCount * this.itemHeight}px`, padding: '0', margin: '0',
+        listStyle: 'none'
+      }, list),
+      setStyleToEl({ position: 'absolute', top: 0, left: 0, right: 0, zIndex: -1 }, spacer)
+    ]);
+
+    if (search) {
+      search.placeholder = 'Поиск...';
+      search.addEventListener('input', (e) => this.handleSearch(e.target.value));
+      header.append(search);
+    }
+
+    // 2. Создаем пул DOM-узлов (только столько, сколько влезет в экран)
+    for (let i = 0; i < this.visibleCount + 1; i++) {
+      const li = document.createElement('li');
+      setStyleToEl({
+        position: 'absolute', left: 0, right: 0, height: `${this.itemHeight}px`,
+        display: 'flex', alignItems: 'center', padding: '0 12px', cursor: 'pointer',
+        boxSizing: 'border-box', borderBottom: '1px solid #eee', willChange: 'transform'
+      }, li);
+      
+      this.els.pool.push(li);
+      list.append(li);
+    }
+
+    list.append(spacer);
+    container.append(this.el, header, list); // this.el - это Label из super()
+
+    // 3. События
+    list.addEventListener('scroll', () => requestAnimationFrame(() => this.updateVirtualList()));
+    list.addEventListener('click', (e) => this.handleItemClick(e));
+
+    this.refreshFullHeight();
+    this.updateVirtualList();
+  }
+
+  // Обновляем высоту "фантомного" скролла
+  refreshFullHeight() {
+    this.els.spacer.style.height = `${this.filteredOptions.length * this.itemHeight}px`;
+  }
+
+  // Главная логика виртуализации
+  updateVirtualList() {
+    const scrollTop = this.els.list.scrollTop;
+    const startIndex = Math.floor(scrollTop / this.itemHeight);
+    
+    this.els.pool.forEach((li, i) => {
+      const dataIndex = startIndex + i;
+      const data = this.filteredOptions[dataIndex];
+
+      if (data) {
+        li.style.transform = `translateY(${dataIndex * this.itemHeight}px)`;
+        li.style.display = 'flex';
+        li.textContent = data.name;
+        li.dataset.value = data.value ?? data.id;
+        
+        // Подсветка выбранного
+        const isSelected = this.selectedValues.has(li.dataset.value);
+        li.classList.toggle(CustomSelector.optionSelectedClassName, isSelected);
+        li.style.backgroundColor = isSelected ? '#e3f2fd' : '#fff';
+      } else {
+        li.style.display = 'none';
+      }
+    });
+  }
+
+  handleItemClick(e) {
+    const li = e.target.closest('li');
+    if (!li || li.style.display === 'none') return;
+
+    const val = li.dataset.value;
+
+    if (this.isMulti) {
+      this.selectedValues.has(val) ? this.selectedValues.delete(val) : this.selectedValues.add(val);
+    } else {
+      this.selectedValues.clear();
+      this.selectedValues.add(val);
+    }
+
+    this.updateVirtualList();
+    if (this.onchange) this.onchange(Array.from(this.selectedValues));
+  }
+
+  handleSearch(text) {
+    const term = text.toLowerCase();
+    this.filteredOptions = this.allOptions.filter(opt => 
+      opt.name.toLowerCase().includes(term)
+    );
+    
+    this.refreshFullHeight();
+    this.els.list.scrollTop = 0; // Сброс скролла при поиске
+    this.updateVirtualList();
+  }
+
+  get element() {
+    return this.els.container;
+  }
+
+  // Публичный метод для получения данных
+  getSelected() {
+    return Array.from(this.selectedValues);
+  }
+}
+
+class CustomTextarea extends CustomLabel {
+  static className = 'custom-textarea-container';
+
+  /**
+   * Быстрый доступ к данным без создания инстанса
+   */
+  static getData(container) {
+    if (!container) return null;
+    const textarea = container.querySelector('textarea');
+    return textarea ? { el: textarea, value: textarea.value } : null;
+  }
+
+  constructor(options = {}) {
+    const {
+      id = '',
+      value = '',
+      label = 'Введите текст сообщения',
+      rows = 4,
+      containerClassName = '',
+      className = '',
+      style = {},
+      containerStyle = {},
+      isRequired = false,
+      onchange = null,
+      oninput = null
+    } = options;
+
+    super({ label, isRequired });
+
+    // Props
+    this.id = id;
+    this._initialValue = value;
+    this.rows = rows;
+    this.onchange = onchange;
+    this.oninput = oninput;
+
+    // Elements
+    this.els = {
+      container: document.createElement('div'),
+      textarea: document.createElement('textarea')
+    };
+
+    this.init(containerClassName, className, style, containerStyle);
+  }
+
+  init(containerClassName, className, style, containerStyle) {
+    const { container, textarea } = this.els;
+
+    // 1. Настройка контейнера
+    container.id = this.id;
+    container.className = [CustomTextarea.className, containerClassName].filter(Boolean).join(' ');
+    
+    // Группируем стили контейнера
+    setStyleToEl({ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      gap: '4px',
+      ...containerStyle 
+    }, container);
+
+    // 2. Настройка поля ввода
+    textarea.rows = this.rows;
+    textarea.value = this._initialValue;
+    textarea.className = className;
+    
+    // Применяем стили только к textarea
+    setStyleToEl(style, textarea);
+
+    // 3. События через addEventListener (пассивные слушатели для скорости)
+    this.setupEvents();
+
+    // 4. Сборка (this.el — это label из CustomLabel)
+    container.append(this.el, textarea);
+  }
+
+  setupEvents() {
+    const { container, textarea } = this.els;
+
+    // Очистка ошибки при наборе текста (oninput быстрее и отзывчивее onkeydown)
+    textarea.addEventListener('input', (e) => {
+      CustomLabel.setError(container, { hasError: false });
+      if (this.oninput) this.oninput(e);
+    });
+
+    if (this.onchange) {
+      textarea.addEventListener('change', (e) => this.onchange(e));
+    }
+  }
+
+  get element() {
+    return this.els.container;
+  
+
+  // Удобный метод для очистки или программной установки значения
+  setValue(val) {
+    this.els.textarea.value = val;
+  }
+
+  getValue() {
+    return this.els.textarea.value;
+  }
+}
+
+
+class CustomModal {
+  static className = 'custom-modal-container';
+
+  constructor(options = {}) {
+    this.settings = {
+      title: 'Заголовок',
+      content: '',
+      id: `modal-${Math.random().toString(36).substr(2, 9)}`,
+      buttons: [],
+      height: 'fit-content',
+      width: 'fit-content',
+      onClose: null,
+      closeOnEsc: true,
+      closeOnOverlay: false,
+      ...options
+    };
+
+    this.init();
+  }
+
+  async init() {
+    // 1. Создаем дерево элементов в памяти (без стилей пока)
+    this.els = {
+      container: document.createElement('div'),
+      modal: document.createElement('div'),
+      header: document.createElement('div'),
+      main: document.createElement('div'),
+      footer: document.createElement('div'),
+      closeBtn: document.createElement('button')
+    };
+
+    this.assembleStructure();
+    this.initEvents();
+    
+    // 2. Рендерим пустую структуру (Layout быстрый, так как нет тяжелых стилей)
+    document.body.append(this.els.container);
+
+    // 3. Массово применяем стили через rAF (один Reflow на всё)
+    await this.applyAllStyles();
+  }
+
+  assembleStructure() {
+    const { container, modal, header, main, footer, closeBtn } = this.els;
+    
+    container.id = this.settings.id;
+    container.className = CustomModal.className;
+
+    // Header
+    const title = document.createElement('h3');
+    title.textContent = this.settings.title;
+    closeBtn.textContent = '×';
+    closeBtn.className = 'close-btn';
+    header.append(title, closeBtn);
+
+    // Main
+    if (this.settings.content instanceof HTMLElement) {
+      main.append(this.settings.content);
+    } else {
+      main.innerHTML = this.settings.content;
+    }
+
+    // Footer (используем наш CustomButton если он доступен, или просто кнопки)
+    this.settings.buttons.forEach(btnCfg => {
+      const btn = document.createElement('button');
+      btn.textContent = btnCfg.text;
+      btn.onclick = btnCfg.onClick;
+      footer.append(btn);
+    });
+
+    modal.append(header, main, footer);
+    container.append(modal);
+  }
+
+  applyAllStyles() {
+    const { container, modal, header, main, closeBtn } = this.els;
+
+    // Все эти вызовы упадут в одну пачку (Batch) благодаря нашей setStyleToEl
+    return Promise.all([
+      setStyleToEl({
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        zIndex: 1000, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center'
+      }, container),
+
+      setStyleToEl({
+        padding: '14px', backgroundColor: 'white', display: 'flex',
+        flexDirection: 'column', gap: '8px', width: this.settings.width,
+        height: this.settings.height, maxHeight: '90vh', borderRadius: '4px'
+      }, modal),
+
+      setStyleToEl({ position: 'relative', minHeight: '38px', paddingRight: '40px' }, header),
+      setStyleToEl({ position: 'absolute', right: 0, top: 0, width: '38px', height: '38px' }, closeBtn),
+      setStyleToEl({ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }, main)
+    ]);
+  }
+
+  initEvents() {
+    this._handlers = {
+      esc: (e) => e.key === 'Escape' && this.close(),
+      overlay: (e) => e.target === this.els.container && this.close(),
+      closeBtn: () => this.close()
+    };
+
+    this.els.closeBtn.addEventListener('click', this._handlers.closeBtn);
+    if (this.settings.closeOnEsc) document.addEventListener('keydown', this._handlers.esc);
+    if (this.settings.closeOnOverlay) this.els.container.addEventListener('click', this._handlers.overlay);
+  }
+
+  close() {
+    if (this.settings.onClose?.()) return; // Если onClose вернул true, отменяем закрытие
+    this.destroy();
+  }
+
+  destroy() {
+    document.removeEventListener('keydown', this._handlers.esc);
+    this.els.container.remove();
+    // Очистка ссылок для GC
+    Object.keys(this.els).forEach(key => this.els[key] = null);
+  }
+}
+
+
+// Пример использования:
+// const modal = new CustomModal({
+//     title: 'Мой заголовок',
+//     content: '<p>Содержимое модального окна</p>',
+//     buttons: [
+//         {
+//             text: 'Закрыть',
+//             onClick: () => modal.close()
+//         }
+//     ]
+// });
 	</script>
 </body>
 
